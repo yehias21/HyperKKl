@@ -1,0 +1,30 @@
+credentials: /home/KKL observer/hyperkkl/credentials.yml
+data:
+  seed: 123
+  solver: rk4
+  sampler: 
+    name: lhs
+    num_samples: 50
+
+  sim_time:
+    start_time: 0.0 # in seconds
+    end_time: 50.0  # in seconds
+    dt: 0.000001 # 10^-6
+
+  system:
+    name: duffing
+
+  data_gen_mode: backward sim
+  PINN_sample_mode: split set
+
+  observer:
+    z_size: 5
+    e: 0.000001 #10e-6
+
+dirs:
+  data: ${hydra:run.dir}
+  logs: ${hydra:runtime.cwd}/logs
+  models: ${hydra:runtime.cwd}/models
+
+Training:
+  method: supervised_PINN

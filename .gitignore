@@ -3,7 +3,7 @@ credentials.yml
 **/output/
 # Ignore any .pkl files
 *.pkl
-/.idea/
+/.idea
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
