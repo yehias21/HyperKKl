@@ -1,6 +1,8 @@
 credentials.yml
 # Ignore any folder named "output" in any subdirectory
 **/output/
+**/data/
+**/results/
 # Ignore any .pkl files
 *.pkl
 /.idea

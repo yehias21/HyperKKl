@@ -35,13 +35,13 @@ class SinSignal:
     
     def simulate(self, sim_time: SimTime) -> np.ndarray:
         time = np.arange(sim_time.t0, sim_time.tn, sim_time.eps)
-        ini_cond = self.ic
+        ini_cond = self._ic
         res = []
         for ic in ini_cond:
             input_signal = 0
             for param in self.sig_param.sig_params:
                 input_signal += param.A * np.sin(2 * np.pi * param.w * time + ic * np.pi)
-                res.append(input_signal)
+            res.append(input_signal)
         return np.array(res)
 
 class Duffing:
