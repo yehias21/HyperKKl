@@ -14,6 +14,7 @@ def RK4(diff_eq, sim_time: SimTime, x0, inp_gen):
     h = sim_time.eps
     if type(inp_gen) is np.ndarray:
         for ind, t in tqdm(enumerate(time)):
+            if len(inp_gen) == 1: ind=0
             k1 = diff_eq(t, x0, inp_gen[ind])
             k2 = diff_eq(t + h / 2, x0 + h / 2 * k1, inp_gen[ind])
             k3 = diff_eq(t + h / 2, x0 + h / 2 * k2, inp_gen[ind])

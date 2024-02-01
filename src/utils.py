@@ -1,8 +1,6 @@
-import random, time
+import torch, os, time, random
 import numpy as np
-import torch
-from torch.utils.data import Dataset
-import os, logging, pickle as pk, time
+from glob import glob
 
 
 def seed_everything(seed: int = 17) -> None:
@@ -17,3 +15,10 @@ def gen_dir_time() -> tuple[str, str]:
     main_dir = time.strftime("%Y-%m-%d")
     sub_dir = time.strftime("%H-%M-%S")
     return main_dir, sub_dir
+
+
+def get_files(path, extension='.tif',str_filter=None):
+    if str_filter is None:
+        return glob(os.path.join(path, '**', f'*{extension}'), recursive=True)
+    else:
+        raise NotImplementedError

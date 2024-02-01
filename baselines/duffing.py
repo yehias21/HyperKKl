@@ -1,8 +1,9 @@
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from comet_ml import Experiment
-from src.dataset import load_dataset
-from src.training import trainer
+from src.data_loader.dataset import load_dataset
+
+
 @hydra.main(config_path="config", config_name="duff",  version_base=None)
 def main(cfg: DictConfig) -> None:
 
