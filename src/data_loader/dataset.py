@@ -32,37 +32,18 @@ def load_dataset(cfg: DictConfig,partition:str='train') -> DataLoader:
     OmegaConf.to_container(cfg, resolve=True)
     if partition == 'train':
         sys = Duffing()
-        sim_time = SimTime(
-            t0=cfg.data.sim_time.start_time,
-            tn=cfg.data.sim_time.end_time,
-            eps= 0.05
-        )
-        A, W = [1, 2, 3], [5, 2, 3]
-        sig_params = SigParam(sig_name='sinusoids',
-                              sig_params=[SinParam(A=3, w=5), SinParam(A=2.1, w=32), SinParam(A=2, w=7),
-                                          SinParam(A=6, w=1)])
         inp = SinSignal(sig_params)
-        ic_param = ICParam(
-            sampler='lhs',
-            seed=1212,
-            samples=5
-        )
         inp.generate_ic(ic_param)
         ic_inp=inp.ic
         print(ic_inp.shape)
         inp_signals = inp.simulate(sim_time)
         print(inp_signals.shape)
-        ic_param = ICParam(
-            sampler='lhs',
-            seed=1212,
-            samples=20
-        )
         # simulate the system
-        states, time = simulate_system_data(sys=sys, solver=cfg.data.solver, sim_time=sim_time, ic_param=ic_param, inp_ic=[], inp_sys=inp)
+        states, time = simulate_system_data(sys=    sys, solver=cfg.data.solver, sim_time=sim_time, ic_param=ic_param, inp_ic=[], inp_sys=inp)
         states = np.delete(states, 0, axis=-2)
         y_out = sys.get_output(states)
         # Simulate the observer
-        import duff_param
+        from baselines.params import duff
         obs = Observer(A=duff_param.OBSERVER_A, B=duff_param.OBSERVER_B)
         z_states = simulate_observer_data(obs=obs, sys=sys, out=y_out,solver=cfg.data.solver,sim_time=sim_time, ic_param=ic_param)
 
@@ -87,7 +68,8 @@ def load_dataset(cfg: DictConfig,partition:str='train') -> DataLoader:
         #     with open(f'{filename}.pkl', 'rb') as file:
         #         loaded_data[filename] = pk.load(file)
         #         print(f"{filename}: {loaded_data[filename].shape}")
-        # # Todo: Dataset forming
+        # # Todo: Dataset forming add a callback for visualization and logging
+
         # ds = KKLObserver(data= loaded_data, pinn_sample_mode= 'split_set')
         # data_loader = DataLoader(ds, batch_size=1, shuffle=True, num_workers= 2)
         # return data_loader

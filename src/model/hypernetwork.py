@@ -1,56 +1,45 @@
 import torch
-from typing import TYPE_CHECKING, Optional
-import numpy as np
-class encoder(torch.nn.Module):
-    '''
-        TODO
-        Encoder for the hypernetwork
-    '''
-    def __init__(self, in_dim, neurons: list, activation = 'relu'):
-        super(encoder, self).__init__()
-        self.layers = torch.nn.ModuleList() 
-        # TODO: add the layers to the module list
-    def forward(self, x):
-        pass
+import numpy as np, math
+from omegaconf import DictConfig
 
 
-class decoder(torch.nn.Module):
-    '''
-        TODO
-        Decoder for the hypernetwork
-    '''
-    def __init__(self, in_dim, neurons: list, activation = 'relu'):
-        super(decoder, self).__init__()
-        self.layers = torch.nn.ModuleList() 
+def rank_calc(input_, output, ratio):
+    # Return the low-rank of sub-matrices given the compression ratio
+    # minimum possible parameter
+    r1 = int(np.ceil(np.sqrt(output)))
+    r2 = int(np.ceil(np.sqrt(input_)))
+    r = np.min((r1, r2))
+    # maximum possible rank
+    # To solve it we need to know the roots of quadratic equation: 2*r*(m+n)=m*n
+    r3 = math.floor((output * input_) / (2 * (output + input_)))
+    rank = math.ceil((1 - ratio) * r + ratio * r3)
+    return rank
 
-    def forward(self, x):
-        pass
+
+def get_decoder(cfg: DictConfig, model_dict: dict, input_size: int):
+    match cfg.method.lower():
+        case "lora":
+            decoder = {}
+            for layer, param in model_dict.items():
+                rank = rank_calc(param.size(0), param.size(1), cfg.rank_ratio)
+                out_size = rank * (param.size(0) + param.size(1))
+                decoder[layer] = torch.nn.Linear(input_size, out_size)
+        case "full":
+            ...
+        case "chunked":
+            raise NotImplementedError("Chunked decoder not implemented yet")
+        case _:
+            raise ValueError(f"Unknown decoder type: {cfg.method}")
 
 
 class HyperNetwork(torch.nn.Module):
-    '''
-        TODO
-        Vanilla HyperNetwork, explain the structure of the network and add params if needed
-    '''
-    def __init__(self, exoin_dim, inner_dim: list[int], params,activation = 'relu'):
+
+    def __init__(self, encoder: torch.nn.Module, decoder: torch.nn.Module) -> None:
         super(HyperNetwork, self).__init__()
-        self.encoder = torch.nn.ModuleList() 
-        for i in range(len(inner_dim)):
-            if i == 0:
-                self.layers.append(torch.nn.Linear(exoin_dim, inner_dim[i]))
-                self.layers.append(torch.nn.ReLU())
-            else:
-                self.layers.append(torch.nn.Linear(inner_dim[i-1], inner_dim[i]))
-                self.layers.append(torch.nn.ReLU())
+        self.encoder = encoder
+        self.decoder = decoder
 
-        self.decoder = {}
-        #  params are the parameters of the main network, loop on it and create a feedforward layer that regress the weight of each layer of the main network
-        for name, size in params.items():
-            out_size = np.prod(size)
-            self.decoder[name]=torch.nn.Linear(inner_dim[-1], out_size)
-    def forward(self, x):
-        res ={}
-        x = self.encoder(x)
-        for zz in self.decoder.items():
-            pass
-
+    def forward(self, x) -> dict[str, torch.Tensor]:
+        embd = self.encoder(x)
+        weights = self.decoder(embd)
+        return weights

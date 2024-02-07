@@ -1,4 +1,9 @@
 credentials: /home/KKL observer/hyperkkl/credentials.yml
+dirs:
+  data: ${hydra:run.dir}
+  logs: ${hydra:runtime.cwd}/logs
+  models: ${hydra:runtime.cwd}/models
+
 data:
   seed: 123
   solver: rk4
@@ -9,7 +14,7 @@ data:
   sim_time:
     start_time: 0.0 # in seconds
     end_time: 50.0  # in seconds
-    dt: 0.000001 # 10^-6
+    dt: 0.001 #  Make sure to take the Shannon's theorem into account
 
   system:
     name: duffing
@@ -21,10 +26,37 @@ data:
     z_size: 5
     e: 0.000001 #10e-6
 
-dirs:
-  data: ${hydra:run.dir}
-  logs: ${hydra:runtime.cwd}/logs
-  models: ${hydra:runtime.cwd}/models
+models:
 
-Training:
+  forward_mapper:
+    type: MLP
+    update_method:  #backprop, delta, full
+    input_size: 2
+    output_size: 5
+    hidden_dim: [100, 100, 100]
+    activation: [relu, relu, relu]
+    pretrained: False
+
+  inverse_mapper:
+    type: MLP
+    update_method:  #backprop, delta, full
+    input_size: 5
+    output_size: 2
+    hidden_dim: [100, 100, 100]
+    activation: [relu, relu, relu]
+    pretrained: False
+
+  hypernetwork:
+    shared: False
+    encoder:
+      type: MLP
+      input_size: 2
+      output_size: 5
+      hidden_sizes: [100, 100, 100]
+      activation: [relu, relu, relu]
+    decoder:
+      method: lora #Full, chunked, lora
+      rank_ratio: 0.5
+
+trainer:
   method: supervised_PINN

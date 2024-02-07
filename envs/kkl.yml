@@ -1,0 +1,26 @@
+name: kkl
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - ipython
+  - jupyter
+  - numpy
+  - pandas
+  - matplotlib
+  - tqdm
+  - pip:
+    - hydra-core
+    - comet-ml
+    - ray[tune]
+    - OpenNMT-py
+    - smt
+    - scipy
+    - torch
+    - pydantic
+    - kaleido
+    - plotly
+    - graphviz
+    - torchviz
