@@ -32,7 +32,6 @@ class SinSignal:
         for param in self.sig_param.sig_params:
             input_signal += param.A * np.sin(2 * np.pi * param.w * t + self.init_cond * np.pi)
         return float(input_signal)
-    
     def simulate(self, sim_time: SimTime) -> np.ndarray:
         time = np.arange(sim_time.t0, sim_time.tn, sim_time.eps)
         ini_cond = self._ic

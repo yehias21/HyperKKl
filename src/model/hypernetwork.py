@@ -19,6 +19,7 @@ def rank_calc(input_, output, ratio):
 def get_decoder(cfg: DictConfig, model_dict: dict, input_size: int):
     match cfg.method.lower():
         case "lora":
+            # Todo: function only supports linear weight layers
             decoder = {}
             for layer, param in model_dict.items():
                 rank = rank_calc(param.size(0), param.size(1), cfg.rank_ratio)

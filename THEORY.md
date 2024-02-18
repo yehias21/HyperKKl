@@ -1,10 +1,15 @@
 # Mathematical 
 ## Hypernetworks
-
+- Use the hypernetwork as hard physics constraint? theoretical guarantee? (e.g most probably as an approximation)
 ### Why does it work?
-
 - The concept of soft weight sharing 
 - Our model is data conditioned
+## Physics points
+- Why do we isolate the physics points from regression points in the loss function? 
+- Can I use the physics points as self-supervised, pretraining technique?
+- How to make the physics constraint hard and not soft (i.e. applicable in the inference time)
+## Normalization
+- why do we normalize the data of different trajectories all together? isn't it better to normalize for each trajectory separately?
 
 ### Relevant models
 - Hypergradient

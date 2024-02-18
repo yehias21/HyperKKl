@@ -1,7 +1,7 @@
 import numpy as np
-from simulators.solvers import RK4
-from simulators.system import Duffing, Observer
-from simulators.tp import ICParam, SimTime
+from src.simulators.solvers import RK4
+from src.simulators.system import Duffing, Observer
+from src.simulators.tp import ICParam, SimTime
 from tqdm import tqdm
 
 

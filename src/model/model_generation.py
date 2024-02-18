@@ -1,18 +1,16 @@
 # imports for model generation
 import copy
 from omegaconf import DictConfig, OmegaConf
-from mapper import KKLObserverNetwork
+from src.model.mapper import KKLObserverNetwork
 import hydra
-from models import get_model
-from hypernetwork import HyperNetwork, get_decoder
+from src.model.models import get_model
+from src.model.hypernetwork import HyperNetwork, get_decoder
 
 
 @hydra.main(config_path="/media/yehias21/DATA/projects/KKL observer/hyperkkl/baselines/config/", config_name="duff",
             version_base=None)
 def init_models(cfg: DictConfig) -> KKLObserverNetwork:
     # Configuration initialization
-    OmegaConf.to_yaml(cfg)
-    cfg = cfg.models
     hypernetwork = {'forward': None, 'inverse': None}
 
     # Initialize the forward and inverse mapper
@@ -26,6 +24,10 @@ def init_models(cfg: DictConfig) -> KKLObserverNetwork:
         update_method_backprop = cfg.forward_mapper.update_method == "backprop"
         if not update_method_backprop:
             fm_dict = forward_mapper.state_dict()
+            fm_dict = {k: v for k,v in fm_dict.items() if 'weight' in k} # Todo: Alter this line to be as option passed
+            # if cfg.forward_mapper.update_method.lower() == "hnn":
+            #     for name, module in forward_mapper():
+            #         del module
             if not cfg.hypernetwork.shared:
                 # Clone encoder module
                 fm_enc = copy.deepcopy(encoder)

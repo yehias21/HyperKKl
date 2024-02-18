@@ -13,6 +13,7 @@ P(xt+1|xt ) = 0
 - We want to generalize for any kind of Input, Idea proposed:
   - If input is very complex in nature to be learned, take the spectral decomposition of it (e.g Fourier basis)
 - The problem with the input is in the encoder and not the decoder, as the decoder maps from Z space to X space. The encoder is the one that needs to be more complex (have a dynamic weights), because it deals with the input.
+- Use the differential equation as a hard constraint not soft constraint --> Can I prove that the hypernetwork guarantee such thing?
 ### Extended Obstacles and solutions
 - **Problem:** What about the sampling of the signals, different sampling rates, will need retraining. \
 **Solution:** Fix a maximum sampling, as in reality the sampling rate of the sensor/oscillator is physically limited.

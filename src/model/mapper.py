@@ -1,6 +1,6 @@
 from typing import Optional
 import torch.nn as nn
-from hypernetwork import HyperNetwork
+from src.model.hypernetwork import HyperNetwork
 
 
 class KKLObserverNetwork(nn.Module):
@@ -11,6 +11,19 @@ class KKLObserverNetwork(nn.Module):
         self.inverse_mapper = inverse_mapper
         self.normalizer = None
         self.hypernetwork = hypernetwork
+
+    @property
+    def learnable_params(self):
+        forward_hypernetwork_params = list(self.hypernetwork['forward'].parameters()) if self.hypernetwork[
+            'forward'] else []
+        inverse_hypernetwork_params = list(self.hypernetwork['inverse'].parameters()) if self.hypernetwork[
+            'inverse'] else []
+
+        return (
+            forward_hypernetwork_params + list(self.inverse_mapper.parameters()) if self.hypernetwork[
+                'forward'] else [],
+            list(self.forward_mapper.parameters()) + inverse_hypernetwork_params if self.hypernetwork['inverse'] else []
+        )
 
     def forward(self, inputs: dict):
         if self.hypernetwork['forward'] is not None:

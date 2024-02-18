@@ -19,44 +19,38 @@ def activation_fn(activation: str):
 def get_model(mapper_config: DictConfig):
     match mapper_config.type.lower():
         case "mlp":
-            match mapper_config.update_method.to_lower():
-                case "none" | "backprop" | "delta":
-                    try:
-                        return MLP(in_dim=mapper_config.input_size, out_dim=mapper_config.output_size,
-                                   hidden_dim=mapper_config.get('hidden_dim', None),
-                                   activation=mapper_config.get('activation', None))
-                    except AttributeError:
-                        print("Error in the configuration file")
+            try:
+                return MLP(in_dim=mapper_config.input_size, out_dim=mapper_config.output_size,
+                           hidden_dim=mapper_config.get('hidden_dim', None),
+                           activation=mapper_config.get('activation', None),
+                           weight_path=mapper_config.get('weight_path', None),
+                           technique=mapper_config.update_method)
+            except Exception as e:
+                raise ValueError(f"Error in initializing MLP model: {e}")
+
         case _:
             raise ValueError(f"Unknown mapper type: {mapper_config.type}")
 
 
 class MLP(nn.Module):
     def __init__(self, in_dim, out_dim, hidden_dim: Optional[list],
-                 activation: list[str], weight_path: str = None, technique: str = 'none'):
+                 activation: list[str], weight_path: str = None, technique: str = 'backprop'):
         super(MLP, self).__init__()
         self.activation = activation
         self.technique = technique.lower()
-        match technique.lower():
-            case "backprop" | "delta" | "none":
-                self.layers = nn.ModuleList()
-                self._gen_layers(in_dim, out_dim, hidden_dim, activation)
-                # Fine_tune or use pretrained weights as initial weights
-                if weight_path is not None:
-                    try:
-                        self.load_state_dict(torch.load(weight_path), strict=True)
-                    except FileNotFoundError:
-                        print(f"File {weight_path} not found")
-                if technique == "delta":
-                    # assert weight_path is not None, "Weight path is required for delta technique"
-                    for layer in self.layers:
-                        for param in layer.parameters():
-                            param.requires_grad = False
-
-            case "full":
-                print(f"Module {self.__class__.__name__}  will be trained using HNN from scratch")
-            case _:
-                raise ValueError(f"Unknown technique: {technique}")
+        self.layers = nn.ModuleList()
+        self._gen_layers(in_dim, out_dim, hidden_dim, activation)
+        # Fine_tune or use pretrained weights as initial weights
+        if weight_path is not None:
+            try:
+                self.load_state_dict(torch.load(weight_path), strict=True)
+            except FileNotFoundError:
+                print(f"File {weight_path} not found")
+        if technique == "delta":
+            # assert weight_path is not None, "Weight path is required for delta technique"
+            for layer in self.layers:
+                for param in layer.parameters():
+                    param.requires_grad = False
 
     def _gen_layers(self, in_dim, out_dim, hidden_dim, activation):
         if hidden_dim is None:
