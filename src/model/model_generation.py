@@ -7,48 +7,35 @@ from src.model.models import get_model
 from src.model.hypernetwork import HyperNetwork, get_decoder
 
 
-@hydra.main(config_path="/media/yehias21/DATA/projects/KKL observer/hyperkkl/baselines/config/", config_name="duff",
-            version_base=None)
-def init_models(cfg: DictConfig) -> KKLObserverNetwork:
-    # Configuration initialization
-    hypernetwork = {'forward': None, 'inverse': None}
+def create_hypernetwork(model_dict, encoder, cfg):
+    if not cfg.shared:
+        # Clone encoder module
+        enc = copy.deepcopy(encoder)
+    else:  # Shared hypernetwork
+        enc = encoder
 
-    # Initialize the forward and inverse mapper
+    # Todo: Filter stage
+    model_dict = {k: v for k, v in model_dict.items() if 'weight' in k}
+
+    decoder = get_decoder(cfg.decoder, model_dict)
+
+    return HyperNetwork(enc, decoder)
+
+
+def init_models(cfg: DictConfig) -> KKLObserverNetwork:
+    # 1. Initialize the forward and inverse mapper
     forward_mapper = get_model(cfg.forward_mapper)
     inverse_mapper = get_model(cfg.inverse_mapper)
 
-    # Initialize the hypernetwork
+    # 2. Initialize the hypernetwork (if required)
+    hypernetwork = {}
     if cfg.hypernetwork is not None:
         encoder = get_model(cfg.hypernetwork.encoder)
 
-        update_method_backprop = cfg.forward_mapper.update_method == "backprop"
-        if not update_method_backprop:
-            fm_dict = forward_mapper.state_dict()
-            fm_dict = {k: v for k,v in fm_dict.items() if 'weight' in k} # Todo: Alter this line to be as option passed
-            # if cfg.forward_mapper.update_method.lower() == "hnn":
-            #     for name, module in forward_mapper():
-            #         del module
-            if not cfg.hypernetwork.shared:
-                # Clone encoder module
-                fm_enc = copy.deepcopy(encoder)
-            else:  # Shared hypernetwork
-                fm_enc = encoder
-            decoder = get_decoder(cfg.hypernetwork.decoder, fm_dict, input_size=cfg.hypernetwork.encoder.output_size)
-            hypernetwork['forward'] = HyperNetwork(fm_enc, decoder)
+        if cfg.forward_mapper.update_method != 'backprop':
+            hypernetwork['forward'] = create_hypernetwork(forward_mapper.state_dict(), encoder, cfg.hypernetwork)
 
-        update_method_backprop_inverse = cfg.inverse_mapper.update_method == "backprop"
-        if not update_method_backprop_inverse:
-            im_dict = inverse_mapper.state_dict()
-            if not cfg.hypernetwork.shared:
-                # Clone encoder module
-                im_enc = copy.deepcopy(encoder)
-            else:  # Shared hypernetwork
-                im_enc = encoder
-            decoder = get_decoder(cfg.hypernetwork.decoder, im_dict, input_size=cfg.hypernetwork.encoder.output_size)
-            hypernetwork['inverse'] = HyperNetwork(im_enc, decoder)
+        if cfg.inverse_mapper.update_method != 'backprop':
+            hypernetwork['inverse'] = create_hypernetwork(inverse_mapper.state_dict(), encoder, cfg.hypernetwork)
 
-    kkl_observer_network = KKLObserverNetwork(forward_mapper, inverse_mapper, hypernetwork)
-    return kkl_observer_network
-
-if __name__ == '__main__':
-    init_models()
+    return KKLObserverNetwork(forward_mapper, inverse_mapper, hypernetwork)

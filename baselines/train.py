@@ -3,8 +3,7 @@ from omegaconf import DictConfig, OmegaConf
 from comet_ml import Experiment
 from src.data_loader.dataset import load_dataset
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-import torch
-
+import torch, logging
 from src.loss.pde_loss import Criterion, PDELoss
 from src.model.model_generation import init_models
 from src.trainer.trainer import Trainer
@@ -23,10 +22,11 @@ def main(cfg: DictConfig) -> None:
     # experiment.log_parameters(OmegaConf.to_container(cfg, resolve=True))
 
     # 2. Load train dataset
-    # train_loader, val_loader = load_dataset(cfg.data, partition='train')
+    train_loader, val_loader = load_dataset(cfg.data, partition='train')
 
     # 3. Initialize model
     kkl_model = init_models(cfg.models)
+    logging.info(f"The  model is {kkl_model}")
 
     # 4. Train
     pde_loss = None
@@ -39,10 +39,6 @@ def main(cfg: DictConfig) -> None:
     # Todo: Save model, optimizer and scheduler
 
     # Test and Evaluate
-
-    # Todo:
-    # Write test_loader
-    # Write evaluate function
 
 
 if __name__ == "__main__":

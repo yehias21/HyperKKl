@@ -1,76 +1,65 @@
+from typing import Optional
 import numpy as np
-from src.simulators.solvers import RK4
-from src.simulators.system import Duffing, Observer
-from src.simulators.tp import ICParam, SimTime
+from src.simulators.system import System, Observer
+from src.simulators.types import SimTime
 from tqdm import tqdm
 
 
-def simulate_system_data(sys: Duffing, solver: str, sim_time: SimTime, ic_param: ICParam,
-                         inp_ic: np.ndarray = np.array([]), inp_sys=None):
-    """ Simulate system """
-    match solver.lower():
-        case "rk4":
-            sys.generate_ic(ic_param)
-            sys_ic = sys.ic
-            match len(inp_ic):
-                case 0:
-                    inp_sys = lambda t: 0
-                    gen_data = None
-                    for x0 in tqdm(sys_ic):
-                        states, time = RK4(sys.diff_eq, sim_time, x0, inp_sys)
-                        states = states[np.newaxis, :]
-                        if gen_data is None:
-                            gen_data = states
-                        else:
-                            gen_data = np.vstack((gen_data, states))
-                case _:
-                    gen_data = []
-                    for inp in inp_ic:
-                        gen_temp = []
-                        for x0 in sys_ic:
-                            inp_sys.set_init_cond(inp)
-                            states, time = RK4(sys.diff_eq, sim_time, x0, inp_sys.generate_signal)
-                            gen_temp.append(states)
-                        gen_data.append(gen_temp)
-                    # Convert the list of lists to a numpy array
-                    gen_data = np.array(gen_data)
-        case _:
-            raise ValueError(f"{solver} is not a valid solver")
-    return gen_data, time
+def simulate_system_data(system, solver, sim_time, input_data: Optional[np.ndarray] = None):
+    """
+     input_trajs: input signal to the system, dimension (n, t, sig_dim)
+     :returns: system states, dimension (inp, sys_ic, t, x_dim)
+     """
+    trajectories = []
+    if input_data is not None:
+        for input_traj in tqdm(input_data, desc="Input Loop", position=0):
+            temp_trajs = []
+            for ic in tqdm(system.ic, desc="system Loop", position=1, leave=False):
+                states, _ = solver(system.diff_eq, sim_time, ic, input_traj)
+                temp_trajs.append(states)
+            trajectories.append(temp_trajs)
+    else:
+        for ic in tqdm(system.ic):
+            states, _ = solver(system.diff_eq, sim_time, ic)
+            trajectories.append(states)
+    # drop the initial conditions from system states
+    trajectories = np.delete(np.array(trajectories), 0, -2)
+    return trajectories, np.arange(sim_time.t0, sim_time.tn, sim_time.eps)
 
 
-def simulate_observer_data(obs: Observer, sys: Duffing,out: np.ndarray,solver: str, sim_time: SimTime, ic_param: ICParam):
+def simulate_observer_data(observer: Observer, system: System, y_out: np.ndarray,
+                           solver, sim_time: SimTime, gen_mode='forward'):
     """ Simulate observer data out"""
-    # FIXME: is this a correct way of generating t0 and thus z0, will the system converge,
-    #  in the same time whether it's autonomous or non-autonomous?
-    # generate IC and t0_pre
-    ic = np.random.rand(ic_param.samples, obs.Z_dim)
-    t_neg = obs.calc_pret0(z_max=10 ,e=10e-6)
-    # generate x0 for the neg time
-    sim_neg = SimTime(
-        t0=t_neg,
-        tn=0,
-        eps=0.05
-    )
-    neg_states, _ = simulate_system_data(sys, solver, sim_neg, ic_param)
-    neg_states = np.delete(neg_states, 0,1)
-    neg_out = sys.get_output(neg_states)
-    z_init = []
-    for z0, y in zip(ic, neg_out):
-        z_temp, _ = RK4(obs.diff_eq, sim_neg, z0, inp_gen=y)
-        z_init.append(z_temp)
+    # checks
+    assert gen_mode in ['forward', 'backward'], "gen_mode should be either 'forward' or 'backward'"
+    # backward distinguishability
+    t_neg = observer.calc_pret0()
+    sim_neg = SimTime(sim_time.t0, t_neg, sim_time.eps) if gen_mode == 'backward' else SimTime(t_neg, sim_time.t0,
+                                                                                                sim_time.eps)
+    # simulate the system in the negative time, with same initial condition of forward time
+    neg_states, _ = simulate_system_data(system, solver, sim_neg)
+    neg_out = system.get_output(neg_states)
 
+    # converge to the initial condition of the observer so that Z0 = T(X0)
+    z_init = []
+    for z0, y in zip(observer.ic, neg_out):
+        z_temp, _ = solver(observer.diff_eq, sim_neg, z0, exogenous_input=y)
+        z_init.append(z_temp)
     z_init = np.array(z_init)
-    z_init =z_init [:,-1,:]
-    z_states= []
-    for y_in in out:
+    z_init=z_init[:, -1, :]
+    assert z_init.shape[0] == y_out.shape[1], "The initial conditions for the observer should be the same as the output"
+
+    # simulate the observer
+    z_states = []
+    # First loop over the input signal
+    for y_in in y_out:
         z_states_temp = []
-        for z0, y in zip(z_init,y_in):
-            z_temp, _ = RK4(obs.diff_eq, sim_time, z0, inp_gen=y)
+        # Inner loop for each initial condition Z0
+        for z0, y in zip(z_init, y_in):
+            z_temp, _ = solver(observer.diff_eq, sim_time, z0, exogenous_input=y)
             z_states_temp.append(z_temp)
         z_states.append(z_states_temp)
-    z_states = np.delete(np.array(z_states),0,-2)
 
-    # generate track for
-
+    # drop the initial conditions from system states
+    z_states = np.delete(np.array(z_states), 0, -2)
     return z_states

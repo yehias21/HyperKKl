@@ -38,8 +38,8 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
         self.activation = activation
         self.technique = technique.lower()
-        self.layers = nn.ModuleList()
-        self._gen_layers(in_dim, out_dim, hidden_dim, activation)
+        self.mlp = nn.ModuleList()
+        self._gen_mlp(in_dim, out_dim, hidden_dim, activation)
         # Fine_tune or use pretrained weights as initial weights
         if weight_path is not None:
             try:
@@ -48,25 +48,25 @@ class MLP(nn.Module):
                 print(f"File {weight_path} not found")
         if technique == "delta":
             # assert weight_path is not None, "Weight path is required for delta technique"
-            for layer in self.layers:
+            for layer in self.mlp:
                 for param in layer.parameters():
                     param.requires_grad = False
 
-    def _gen_layers(self, in_dim, out_dim, hidden_dim, activation):
+    def _gen_mlp(self, in_dim, out_dim, hidden_dim, activation):
         if hidden_dim is None:
-            self.layers.append(nn.Linear(in_dim, out_dim))
+            self.mlp.append(nn.Linear(in_dim, out_dim))
         else:
             assert len(hidden_dim) == len(activation)
-            self.layers.append(nn.Linear(in_dim, hidden_dim[0]))
-            self.layers.append(activation_fn(activation[0]))
+            self.mlp.append(nn.Linear(in_dim, hidden_dim[0]))
+            self.mlp.append(activation_fn(activation[0]))
 
             for i in range(1, len(hidden_dim)):
-                self.layers.append(nn.Linear(hidden_dim[i - 1], hidden_dim[i]))
-                self.layers.append(activation_fn(activation[i]))
-            self.layers.append(nn.Linear(hidden_dim[-1], out_dim))
+                self.mlp.append(nn.Linear(hidden_dim[i - 1], hidden_dim[i]))
+                self.mlp.append(activation_fn(activation[i]))
+            self.mlp.append(nn.Linear(hidden_dim[-1], out_dim))
 
     def _forward(self, x):
-        for layer in self.layers:
+        for layer in self.mlp:
             x = layer(x)
         return x
 

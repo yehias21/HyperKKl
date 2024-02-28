@@ -1,9 +1,9 @@
-import torch
+import torch, torch.nn as nn
 import numpy as np, math
 from omegaconf import DictConfig
 
 
-def rank_calc(input_, output, ratio):
+def rank_mlp(input_, output, ratio):
     # Return the low-rank of sub-matrices given the compression ratio
     # minimum possible parameter
     r1 = int(np.ceil(np.sqrt(output)))
@@ -16,17 +16,39 @@ def rank_calc(input_, output, ratio):
     return rank
 
 
-def get_decoder(cfg: DictConfig, model_dict: dict, input_size: int):
+def get_rank(layer, param, ratio):
+    if 'mlp' in layer:
+        rank = rank_mlp(param.size(0), param.size(1), ratio)
+        out_size = rank * (param.size(0) + param.size(1))
+    else:
+        raise NotImplementedError
+    return out_size
+
+
+class LoraDecoder(torch.nn.Module):
+    def __init__(self, model_dict, cfg):
+        super().__init__()
+        self.source_dict = model_dict
+        self.decoder = {}
+        for layer, param in model_dict.items():
+            out_size = get_rank(layer, param, cfg.rank_ratio)
+            self.decoder[layer] = torch.nn.Linear(cfg.input_size, out_size)
+
+    def forward(self, x):
+        results = {}
+        for layer in self.decoder.keys():
+            x = self.decoder[layer](x)
+            # Todo:
+            # how to slice the rank matrix and reshape it to the original shape
+        return results
+
+
+def get_decoder(cfg: DictConfig, model_dict: dict):
     match cfg.method.lower():
         case "lora":
-            # Todo: function only supports linear weight layers
-            decoder = {}
-            for layer, param in model_dict.items():
-                rank = rank_calc(param.size(0), param.size(1), cfg.rank_ratio)
-                out_size = rank * (param.size(0) + param.size(1))
-                decoder[layer] = torch.nn.Linear(input_size, out_size)
+            return LoraDecoder(model_dict, cfg)
         case "full":
-            ...
+            raise NotImplementedError("full decoder not implemented yet")
         case "chunked":
             raise NotImplementedError("Chunked decoder not implemented yet")
         case _:
