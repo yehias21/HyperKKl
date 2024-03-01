@@ -73,13 +73,13 @@ class Duffing(System):
 
     def __init__(self, sampler, system_param, num_samples=1, noise: Callable = None) -> None:
         # calculate the z_dim
-        self.sampler = sampler
+        self._sampler = sampler
         self.noise = noise if noise else lambda x, t: np.zeros_like(x)
         self._ic = sampler(num_samples)
         self.system_param = system_param
 
     def generate_ic(self, num_samples: int) -> None:
-        self._ic = self.sampler(num_samples)
+        self._ic = self._sampler(num_samples)
 
     def diff_eq(self, t: float, x: list[float], inp: Optional[Union[float, Callable]] = 0) -> np.ndarray:
         """ System function """
@@ -92,7 +92,7 @@ class Duffing(System):
 
     def get_output(self, states: np.ndarray) -> np.ndarray:
         """ Returns the output of the system """
-        return np.array(self.system_param.C) * states
+        return (np.array(self.system_param.C) * states)[..., self.system_param.ObservableIndex]
 
     @property
     def ic(self) -> np.ndarray:
@@ -108,6 +108,9 @@ class Duffing(System):
         z_dim = y_dim * (2 * x_dim + 1)
         return SysDim(x_dim=x_dim, z_dim=z_dim, y_dim=y_dim)
 
+    def sampler(self, sampler: Callable) -> None:
+        self._sampler = sampler
+
 
 class Observer:
     def __init__(self, A: list, B: list, z_dim: int, e: float, z_max: int, sampler, num_samples=1) -> None:
@@ -115,12 +118,12 @@ class Observer:
         self.B = np.array(B)
         self.z_dim = z_dim
         self._ic = sampler(num_samples)
-        self.sampler = sampler
+        self._sampler = sampler
         self.e = e
         self.z_max = z_max
 
     def generate_ic(self, num_samples: int) -> None:
-        self._ic = self.sampler(num_samples)
+        self._ic = self._sampler(num_samples)
 
     def diff_eq(self, t: float, z: list[float], y: list[float]) -> tuple[float]:
         z_dot = np.matmul(self.A, z) + self.B * y

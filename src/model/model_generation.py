@@ -28,14 +28,14 @@ def init_models(cfg: DictConfig) -> KKLObserverNetwork:
     inverse_mapper = get_model(cfg.inverse_mapper)
 
     # 2. Initialize the hypernetwork (if required)
-    hypernetwork = {}
+    forward_hypernetwork, inverse_hypernetwork = None, None
     if cfg.hypernetwork is not None:
         encoder = get_model(cfg.hypernetwork.encoder)
 
         if cfg.forward_mapper.update_method != 'backprop':
-            hypernetwork['forward'] = create_hypernetwork(forward_mapper.state_dict(), encoder, cfg.hypernetwork)
+            forward_hypernetwork = create_hypernetwork(forward_mapper.state_dict(), encoder, cfg.hypernetwork)
 
         if cfg.inverse_mapper.update_method != 'backprop':
-            hypernetwork['inverse'] = create_hypernetwork(inverse_mapper.state_dict(), encoder, cfg.hypernetwork)
+            inverse_hypernetwork = create_hypernetwork(inverse_mapper.state_dict(), encoder, cfg.hypernetwork)
 
-    return KKLObserverNetwork(forward_mapper, inverse_mapper, hypernetwork)
+    return KKLObserverNetwork(forward_mapper, inverse_mapper, forward_hypernetwork, inverse_hypernetwork)

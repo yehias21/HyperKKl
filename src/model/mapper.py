@@ -5,43 +5,51 @@ from src.model.hypernetwork import HyperNetwork
 
 class KKLObserverNetwork(nn.Module):
     def __init__(self, forward_mapper, inverse_mapper,
-                 hypernetwork: dict[str, Optional[HyperNetwork]]):
+                 forward_hypernetwork: Optional[HyperNetwork],
+                 inverse_hypernetwork: Optional[HyperNetwork]):
         super(KKLObserverNetwork, self).__init__()
         self.forward_mapper = forward_mapper
         self.inverse_mapper = inverse_mapper
+        self.forward_hypernetwork = forward_hypernetwork
+        self.inverse_hypernetwork = inverse_hypernetwork
         self.normalizer = None
-        self.hypernetwork = hypernetwork
 
     @property
     def learnable_params(self):
-        forward_hypernetwork_params = list(self.hypernetwork['forward'].parameters()) if self.hypernetwork[
-            'forward'] else []
-        inverse_hypernetwork_params = list(self.hypernetwork['inverse'].parameters()) if self.hypernetwork[
-            'inverse'] else []
+        # Todo: Need to be reviewed
+        # Parameters from forward_mapper and inverse_mapper
+        params = list(self.forward_mapper.parameters()) + list(self.inverse_mapper.parameters())
 
-        return (
-            forward_hypernetwork_params + list(self.inverse_mapper.parameters()) if self.hypernetwork[
-                'forward'] else [],
-            list(self.forward_mapper.parameters()) + inverse_hypernetwork_params if self.hypernetwork['inverse'] else []
-        )
+        # Parameters from forward hypernetwork (if it exists)
+        if self.forward_hypernetwork is not None:
+            params.extend(list(self.forward_hypernetwork.parameters()))
+
+        # Parameters from inverse hypernetwork (if it exists)
+        if self.inverse_hypernetwork is not None:
+            params.extend(list(self.inverse_hypernetwork.parameters()))
+
+        return params
+
+    def set_normalizer(self, normalizer):
+        self.normalizer = normalizer
 
     def forward(self, inputs: dict):
-        if self.hypernetwork['forward'] is not None:
+        if self.forward_hypernetwork is not None:
             try:
-                weights = self.hypernetwork['forward'](inputs['hyper_input'])
-                z_hat = self.forward_mapper(inputs['x'], weights)
+                weights = self.forward_hypernetwork(inputs['exo_input'])
+                z_hat = self.forward_mapper(inputs['x_states'], weights)
             except Exception as e:
                 print(f"Forward mapper hypernetwork failed with error: {e}")
         else:
-            z_hat = self.forward_mapper(inputs['x'])
+            z_hat = self.forward_mapper(inputs['x_states'])
 
-        if self.hypernetwork['inverse'] is not None:
+        if self.inverse_hypernetwork is not None:
             try:
-                weights = self.hypernetwork['inverse'](inputs['hyper_input'])
-                x_hat = self.inverse_mapper(inputs['z'], weights)
+                weights = self.inverse_hypernetwork(inputs['exo_input'])
+                x_hat = self.inverse_mapper(inputs['z_states'], weights)
             except Exception as e:
                 print(f"Inverse mapper hypernetwork failed with error: {e}")
         else:
-            x_hat = self.inverse_mapper(inputs['z'])
+            x_hat = self.inverse_mapper(inputs['z_states'])
 
         return z_hat, x_hat

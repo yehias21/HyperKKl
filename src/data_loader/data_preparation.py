@@ -39,7 +39,7 @@ def simulate_observer_data(observer: Observer, system: System, y_out: np.ndarray
     # simulate the system in the negative time, with same initial condition of forward time
     neg_states, _ = simulate_system_data(system, solver, sim_neg)
     neg_out = system.get_output(neg_states)
-
+    neg_out = np.flip(neg_out, axis=-2) if gen_mode == 'backward' else neg_out
     # converge to the initial condition of the observer so that Z0 = T(X0)
     z_init = []
     for z0, y in zip(observer.ic, neg_out):

@@ -19,7 +19,7 @@ class Trainer:
         self.model.train()
         for idx, data in enumerate(self.data_loader):
             total_loss = 0
-            x_label, z_label, y_label, u_label, t = data
+            x_label, z_label, u_label, t = data
             self.optimizer.zero_grad()
             z_pred, x_pred = self.model(x_label, z_label, y_label, t)
             total_loss += self.criterion(x_pred, x_label, z_pred, z_label)

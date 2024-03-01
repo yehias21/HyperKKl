@@ -9,13 +9,13 @@ data:
   solver:
     _target_: src.simulators.solvers.get_solver
     name: rk4
-  PINN_sample_mode: split_set # split_set, split_time, same
-  data_gen_mode: backward_sim #forward_sim, backward_sim
+  pinn_sampling: no_physics # split_set, split_traj, no_physics
+  gen_mode: forward #'forward' or 'backward'"
   dataloader:
     seed: 123
     batch_size: 32
     validation: 10 # time in sec
-    shuffle: True
+    shuffle: False
     window_size: 1
 
   sim_time:
@@ -116,3 +116,4 @@ trainer:
   epochs: 15
   learning_rate: 0.001
   lambda: 1
+  loss: mse

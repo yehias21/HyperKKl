@@ -28,18 +28,20 @@ def get_rank(layer, param, ratio):
 class LoraDecoder(torch.nn.Module):
     def __init__(self, model_dict, cfg):
         super().__init__()
-        self.source_dict = model_dict
-        self.decoder = {}
+        self.decoder = nn.ModuleList()
+        self.layer_names = []
+
         for layer, param in model_dict.items():
             out_size = get_rank(layer, param, cfg.rank_ratio)
-            self.decoder[layer] = torch.nn.Linear(cfg.input_size, out_size)
+            linear_layer = nn.Linear(cfg.input_size, out_size)
+            self.decoder.append(linear_layer)
+            self.layer_names.append(layer)
 
     def forward(self, x):
         results = {}
-        for layer in self.decoder.keys():
-            x = self.decoder[layer](x)
-            # Todo:
-            # how to slice the rank matrix and reshape it to the original shape
+        for layer, linear_layer in zip(self.layer_names, self.decoder):
+            results[layer] = linear_layer(x)
+            # todo: resize and reshape must take place
         return results
 
 

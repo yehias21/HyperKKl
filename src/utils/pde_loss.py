@@ -4,21 +4,8 @@ from torch.autograd import function
 from typing import cast
 
 
-class Normalizer:
-    def __init__(self, mean: torch.Tensor, std: torch.Tensor):
-        super().__init__()
-        self.mean = mean
-        self.std = std
-
-    def normalize(self, tensor) -> torch.Tensor:
-        return (tensor - self.mean) / self.std
-
-    def denormalize(self, tensor) -> torch.Tensor:
-        return (tensor * self.std) + self.mean
-
-
 class Criterion(torch.nn.Module):
-    def __init__(self, loss:str, method, pde_loss= None):
+    def __init__(self, loss: str, method, pde_loss=None):
         super().__init__()
         self.pde_loss = pde_loss
         self.method = method
