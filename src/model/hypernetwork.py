@@ -22,26 +22,32 @@ def get_rank(layer, param, ratio):
         out_size = rank * (param.size(0) + param.size(1))
     else:
         raise NotImplementedError
-    return out_size
+    return out_size, rank
 
 
 class LoraDecoder(torch.nn.Module):
     def __init__(self, model_dict, cfg):
         super().__init__()
         self.decoder = nn.ModuleList()
+        self.layer_size = {}
         self.layer_names = []
 
         for layer, param in model_dict.items():
-            out_size = get_rank(layer, param, cfg.rank_ratio)
+            out_size, rank = get_rank(layer, param, cfg.rank_ratio)
             linear_layer = nn.Linear(cfg.input_size, out_size)
+            self.layer_size[layer] = (param.size(0), param.size(1), rank)
             self.decoder.append(linear_layer)
             self.layer_names.append(layer)
 
     def forward(self, x):
         results = {}
         for layer, linear_layer in zip(self.layer_names, self.decoder):
-            results[layer] = linear_layer(x)
-            # todo: resize and reshape must take place
+            temp = linear_layer(x)
+            results[layer] = torch.matmul(
+                temp[:, :self.layer_size[layer][0] * self.layer_size[layer][2]].view(-1, self.layer_size[layer][0],
+                                                                                     self.layer_size[layer][2]),
+                temp[:, self.layer_size[layer][0] * self.layer_size[layer][2]:].view(-1, self.layer_size[layer][2],
+                                                                                     self.layer_size[layer][1]))
         return results
 
 

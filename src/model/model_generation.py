@@ -29,7 +29,7 @@ def init_models(cfg: DictConfig) -> KKLObserverNetwork:
 
     # 2. Initialize the hypernetwork (if required)
     forward_hypernetwork, inverse_hypernetwork = None, None
-    if cfg.hypernetwork is not None:
+    if 'hypernetwork' is cfg:
         encoder = get_model(cfg.hypernetwork.encoder)
 
         if cfg.forward_mapper.update_method != 'backprop':

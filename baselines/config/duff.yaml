@@ -1,4 +1,3 @@
-credentials: /media/yehias21/DATA/projects/KKL observer/hyperkkl/baselines/config/credentials.yaml
 dirs:
   data: ${hydra:run.dir}
   logs: ${hydra:runtime.cwd}/logs
@@ -27,7 +26,7 @@ data:
 
   system:
     _target_: src.simulators.system.Duffing
-    num_samples: 1
+    num_samples: 4
     system_param:
         _target_: src.simulators.types.SysParam
         C: [1, 0] # Observation matrix
@@ -35,28 +34,38 @@ data:
     sampler:
       _target_: src.simulators.sampler.get_sampler
       sampler_type: lhs
-      seed: 123
+      seed: 0
       sample_space: [[ -1,1 ],[ -1,1 ]]
+#    noise:
+#      _target_: src.simulators.noise.get_noise
+#      noise_type: gaussian
+#      mean: 0
+#      std: 0.1
+#  ph_sampler:
+#    _target_: src.simulators.sampler.get_sampler
+#    sampler_type: lhs
+#    seed: 8888
+#    sample_space: [ [ -1,1 ],[ -1,1 ] ]
 
-
-  input_signal:
-    _target_: src.simulators.system.SinSignal
-    num_samples: 1
-    sig_param:
-      _target_: src.simulators.types.SigParam
-      signal_type: harmonics
-      signal_data:
-        {
-          amp: [ 1, 3, 4, 5 ],
-          freq: [ 1, 3, 6, 2 ],
-          phase: [ 0, 0, 0, 0 ]
-        }
-    sampler:
-      _target_: src.simulators.sampler.get_sampler
-      sampler_type: lhs
-      seed: 123
-      sample_space: [[-1,1]]
-
+#
+#  input_signal:
+#    _target_: src.simulators.system.SinSignal
+#    num_samples: 1
+#    sig_param:
+#      _target_: src.simulators.types.SigParam
+#      signal_type: harmonics
+#      signal_data:
+#        {
+#          amp: [ 1, 3, 4, 5 ],
+#          freq: [ 1, 3, 6, 2 ],
+#          phase: [ 0, 0, 0, 0 ]
+#        }
+#    sampler:
+#      _target_: src.simulators.sampler.get_sampler
+#      sampler_type: lhs
+#      seed: 123
+#      sample_space: [[-1,1]]
+#
 
   observer:
       _target_: src.simulators.system.Observer
@@ -80,7 +89,7 @@ models:
 
   forward_mapper:
     type: MLP
-    update_method: full #backprop, delta, full
+    update_method: backprop #backprop, delta, full
     input_size: 2
     output_size: 5
     hidden_dim: [ 100, 100, 100 ]
@@ -95,21 +104,21 @@ models:
     hidden_dim: [ 100, 100, 100 ]
     activation: [ relu, relu, relu ]
     pretrained: False
-
-  hypernetwork:
-    shared: True
-    encoder:
-      type: MLP
-      update_method: backprop
-      input_size: 1
-      output_size: 128
-      hidden_dim: [ 100, 100, 100 ]
-      activation: [ relu, relu, relu ]
-    decoder:
-      method: lora #Full, chunked, lora
-      regress: weight  #all - weight
-      input_size: 128
-      rank_ratio: 0.5
+#
+#  hypernetwork:
+#    shared: True
+#    encoder:
+#      type: MLP
+#      update_method: backprop
+#      input_size: 1
+#      output_size: 128
+#      hidden_dim: [ 100, 100, 100 ]
+#      activation: [ relu, relu, relu ]
+#    decoder:
+#      method: lora #Full, chunked, lora
+#      regress: weight  #all - weight
+#      input_size: 128
+#      rank_ratio: 0.5
 
 trainer:
   method: supervised    #or unsupervised

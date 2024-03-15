@@ -3,40 +3,28 @@ import numpy as np
 
 
 class Normalizer:
-    def __init__(self, dataset):
-        self.means, self.stds = self.calculate_statistics(dataset)
+    def __init__(self, dataloader):
+        self.means, self.stds = self.calculate_statistics(dataloader)
 
-    def calculate_statistics(self, dataset):
+    def calculate_statistics(self, dataloader):
         means = {}
         stds = {}
 
-        for key in dataset.x_states:
-            if key not in means:
-                means[key] = []
-                stds[key] = []
+        for batched_data in dataloader:
+            for key, value in batched_data.items():
+                if isinstance(value, dict):
+                    for inner_key, inner_value in value.items():
+                        inner_value = inner_value.numpy().ravel()
+                        means.setdefault(inner_key, []).append(inner_value.mean())
+                        stds.setdefault(inner_key, []).append(inner_value.std())
+                else:
+                    value = value.numpy().ravel()
+                    means.setdefault(key, []).append(value.mean())
+                    stds.setdefault(key, []).append(value.std())
 
-            data = dataset.x_states[key].ravel()
-            means[key].append(np.mean(data))
-            stds[key].append(np.std(data))
-
-        for key in dataset.z_states:
-            if key not in means:
-                means[key] = []
-                stds[key] = []
-
-            data = dataset.z_states[key].ravel()
-            means[key].append(np.mean(data))
-            stds[key].append(np.std(data))
-
-        if dataset.input_trajectories is not None:
-            key = 'input_trajectories'
-            if key not in means:
-                means[key] = []
-                stds[key] = []
-
-            data = dataset.input_trajectories.ravel()
-            means[key].append(np.mean(data))
-            stds[key].append(np.std(data))
+        # Calculate overall mean and standard deviation
+        means = {key: np.mean(values) for key, values in means.items()}
+        stds = {key: np.std(values) for key, values in stds.items()}
 
         return means, stds
 

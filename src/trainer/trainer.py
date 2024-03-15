@@ -1,3 +1,6 @@
+import torch
+
+
 class Trainer:
     """
     This trainer suits the following paradigms:
@@ -5,31 +8,49 @@ class Trainer:
     - Curriculum learning
     - Hypernetwork training
     """
+
     def __init__(self, model, criterion, optimizer, cfg,
-                 data_loader, valid_data_loader=None, lr_scheduler=None, pde_loss=None):
+                 train_loader, logger=None, val_loader=None, lr_scheduler=None):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
         self.cfg = cfg
-        self.data_loader = data_loader
-        self.valid_data_loader = valid_data_loader
+        self.train_loader = train_loader
+        self.val_loader = val_loader
         self.lr_scheduler = lr_scheduler
-        self.pde_loss = pde_loss
+        self.logger = logger
+
     def _train_epoch(self, epoch):
         self.model.train()
-        for idx, data in enumerate(self.data_loader):
-            total_loss = 0
-            x_label, z_label, u_label, t = data
+        total_loss = 0
+        for idx, data in enumerate(self.train_loader):
             self.optimizer.zero_grad()
-            z_pred, x_pred = self.model(x_label, z_label, y_label, t)
-            total_loss += self.criterion(x_pred, x_label, z_pred, z_label)
-            total_loss+= self.pde_loss( z_pred, x_label, y_label)
-            total_loss.backward()
+            output = self.model(data)
+            loss = self.criterion(output, data)
+            loss.backward()
             self.optimizer.step()
-            self.lr_scheduler.step()
+            total_loss += loss.item()
+
+        total_loss = (total_loss / len(self.train_loader))
+        if self.lr_scheduler:
+            self.lr_scheduler.step(total_loss)
+        self._progress(epoch, total_loss)
+        return total_loss
 
     def _valid_epoch(self, epoch):
-        pass
+        self.model.eval()
+        total_loss = 0
+        with torch.no_grad():
+            for idx, data in enumerate(self.val_loader):
+                output = self.model(data)
+                loss = self.criterion(output, data)  # Assuming data is the target
+                total_loss += loss.item()
+
+        return total_loss / len(self.val_loader)
+
+    def _progress(self, epoch, loss):
+        if self.logger:
+            self.logger.log_metric("train_loss", loss, step=epoch)
 
 
 if __name__ == '__main__':

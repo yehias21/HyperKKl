@@ -15,17 +15,21 @@ class Criterion(torch.nn.Module):
             case _:
                 raise NotImplementedError(f"Loss {loss} not supported")
 
+    def pde_loss(self, data, output):
+        loss = self.pde_loss(output['z_states']['z_physics'], data['x_states']['x_physics'], data['y_out']['y_physics'])
+        return loss
+
     def forward(self, data, output) -> torch.Tensor:
         match self.method:
             case "unsupervised":
-                loss = self.loss_fn(output['x'], data['x'])
+                loss = self.loss_fn(output['x_states']['x_regress'], data['x_states']['x_regress'])
             case "supervised":
-                loss = self.loss_fn(output['x'], data['x'])
-                loss += self.loss_fn(output['z'], data['z'])
+                loss = self.loss_fn(output['x_states']['x_regress'], data['x_states']['x_regress'])
+                loss += self.loss_fn(output['z_states']['z_regress'], data['z_states']['z_regress'])
             case "supervised_pinn":
-                loss = self.loss_fn(output['x'], data['x'])
-                loss += self.loss_fn(output['z'], data['z'])
-                loss += self.pde_loss(output['z'], data['x'], data['y'])
+                loss = self.loss_fn(output['x_states']['x_regress'], data['x_states']['x_regress'])
+                loss += self.loss_fn(output['z_states']['z_regress'], data['z_states']['z_regress'])
+                loss += self.pde_loss(data, output)
             case _:
                 raise NotImplementedError(f"Method {self.method} not supported")
         return loss

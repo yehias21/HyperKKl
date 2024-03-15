@@ -44,7 +44,7 @@ class SinSignal(InputSignal):
         for values in zip(*self.signal_data.values()):
             amp, freq, phase = values
             input_signal += amp * np.sin(2 * np.pi * freq * t + ic * np.pi)
-        return np.array(input_signal)
+        return np.array(input_signal).reshape(t.shape[0], -1)
 
     def generate_trajs(self, sim_time: SimTime) -> np.ndarray:
         """ Generate the input signal """
@@ -71,7 +71,7 @@ class SinSignal(InputSignal):
 
 class Duffing(System):
 
-    def __init__(self, sampler, system_param, num_samples=1, noise: Callable = None) -> None:
+    def __init__(self, sampler, system_param, num_samples=2, noise: Callable = None) -> None:
         # calculate the z_dim
         self._sampler = sampler
         self.noise = noise if noise else lambda x, t: np.zeros_like(x)
@@ -86,7 +86,7 @@ class Duffing(System):
 
         if callable(inp): inp = inp(t)
         x1_dot = x[1] ** 3
-        x2_dot = - x[0] + inp
+        x2_dot = - x[0] + inp[0]
 
         return np.array([x1_dot, x2_dot]) + self.noise(x, t)
 
@@ -113,7 +113,7 @@ class Duffing(System):
 
 
 class Observer:
-    def __init__(self, A: list, B: list, z_dim: int, e: float, z_max: int, sampler, num_samples=1) -> None:
+    def __init__(self, A: list, B: list, z_dim: int, e: float, z_max: int, sampler, num_samples=2) -> None:
         self.A = np.array(A).reshape(z_dim, z_dim)
         self.B = np.array(B)
         self.z_dim = z_dim

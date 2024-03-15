@@ -77,17 +77,17 @@ class MLP(nn.Module):
                 w_final = module.weight.detach().clone() + delta_weights.get(f'{name}.weight', torch.Tensor([0]))
                 bias = module.bias.detach().clone() + delta_weights.get(f'{name}.bias', torch.Tensor([0]))
                 x = F.linear(x, w_final, bias)
-            elif isinstance(module, nn.ReLU):
-                x = F.relu(x)
-            elif isinstance(module, nn.Tanh):
-                x = F.tanh(x)
-            elif isinstance(module, nn.Sigmoid):
-                x = F.sigmoid(x)
+            elif isinstance(module, (nn.ReLU, nn.Tanh, nn.Sigmoid)):
+                x = activation_fn(module.__class__.__name__.lower())(x)
         return x
 
-    def _forward_hnn(self, x, weight: dict[str, torch.Tensor]):
-        for idx, (name, weight) in enumerate(weight.items()):
-            x = F.linear(x, weight)
+    def _forward_hnn(self, x, weights: dict[str, torch.Tensor]):
+        for idx, (name, weight) in enumerate(weights.items()):
+            temp = []
+            for i in range(weight.shape[0]):
+                temp.append(F.linear(x[i], weight[i]))
+            x = torch.stack(temp)
+            #
             try:
                 x = activation_fn(self.activation[idx])(x)
             except IndexError:

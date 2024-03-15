@@ -50,6 +50,5 @@ class NoiseParam:
 
 @dataclass
 class SigParam:
-
     signal_type: str
     signal_data: Dict

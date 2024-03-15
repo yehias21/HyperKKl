@@ -75,15 +75,12 @@ class SphericalSampler:
 class UniformSampler:
     def __init__(self, xlimits, seed=0):
         self.xlimits = np.array(xlimits)
-        self.seed = seed
         self.random = np.random.RandomState(seed)
 
     def __call__(self, num_samples):
-        if self.seed is not None:
-            np.random.seed(self.seed)
-        samples = self.random.uniform(low=self.xlimits[:, 0], high=self.xlimits[:, 1],
+
+        return self.random.uniform(low=self.xlimits[:, 0], high=self.xlimits[:, 1],
                                       size=(num_samples, len(self.xlimits)))
-        return samples
 
 
 class NormalSampler:
@@ -92,8 +89,6 @@ class NormalSampler:
         self.random = np.random.RandomState(seed)
 
     def __call__(self, num_samples):
-        if self.seed is not None:
-            np.random.RandomState(self.seed)
         mean = 0.5 * (self.xlimits[:, 0] + self.xlimits[:, 1])
         std_dev = 0.5 * (self.xlimits[:, 1] - self.xlimits[:, 0])
         samples = mean + std_dev * self.random.randn(num_samples, len(self.xlimits))

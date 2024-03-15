@@ -21,7 +21,7 @@ def runge_kutta_4th_order(diff_eq: Callable, sim_time: SimTime, x0: np.ndarray,
     states = x0
     time = np.arange(sim_time.t0, sim_time.tn, sim_time.eps)
     h = sim_time.eps
-    exogenous_input = np.zeros(time.shape) if exogenous_input is None else exogenous_input
+    exogenous_input = np.zeros_like(time).reshape(time.shape[0], -1) if exogenous_input is None else exogenous_input
     if isinstance(exogenous_input, np.ndarray):
         assert exogenous_input.shape[0] == time.shape[0], "Input signal should have the same length as time"
     for ind, t in tqdm(enumerate(time)):

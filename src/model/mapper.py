@@ -1,5 +1,5 @@
 from typing import Optional
-import torch.nn as nn
+import torch.nn as nn, torch
 from src.model.hypernetwork import HyperNetwork
 
 
@@ -16,40 +16,74 @@ class KKLObserverNetwork(nn.Module):
 
     @property
     def learnable_params(self):
-        # Todo: Need to be reviewed
-        # Parameters from forward_mapper and inverse_mapper
-        params = list(self.forward_mapper.parameters()) + list(self.inverse_mapper.parameters())
-
+        params = []
         # Parameters from forward hypernetwork (if it exists)
-        if self.forward_hypernetwork is not None:
-            params.extend(list(self.forward_hypernetwork.parameters()))
+        if self.forward_hypernetwork is None:
+            params.extend(self.forward_mapper.parameters())
+        else:
+            params.extend(self.forward_hypernetwork.parameters())
 
-        # Parameters from inverse hypernetwork (if it exists)
-        if self.inverse_hypernetwork is not None:
-            params.extend(list(self.inverse_hypernetwork.parameters()))
+            # Parameters from inverse hypernetwork (if it exists)
+        if self.inverse_hypernetwork is None:
+            params.extend(self.inverse_mapper.parameters())
+        else:
+            params.extend(self.inverse_hypernetwork.parameters())
 
         return params
 
     def set_normalizer(self, normalizer):
         self.normalizer = normalizer
 
+    def _normalize_data(self, data):
+        if self.normalizer:
+            norm_data = {}
+            for key in data.keys():
+                if isinstance(data[key], dict):
+                    norm_data[key] = {}
+                    for inner_key in data[key].keys():
+                        norm_data[key][inner_key] = self.normalizer.normalize(data[key][inner_key], inner_key)
+                else:
+                    norm_data[key] = self.normalizer.normalize(data[key], key)
+
+            return norm_data
+
+    def _denormalize_data(self, data):
+        if self.normalizer:
+            denorm_data = {}
+            for key in data.keys():
+                if isinstance(data[key], dict):
+                    denorm_data[key] = {}
+                    for inner_key in data[key].keys():
+                        denorm_data[key][inner_key] = self.normalizer.denormalize(data[key][inner_key], inner_key)
+                else:
+                    denorm_data[key] = self.normalizer.denormalize(data[key], key)
+
+            return denorm_data
+
     def forward(self, inputs: dict):
-        if self.forward_hypernetwork is not None:
-            try:
-                weights = self.forward_hypernetwork(inputs['exo_input'])
-                z_hat = self.forward_mapper(inputs['x_states'], weights)
-            except Exception as e:
-                print(f"Forward mapper hypernetwork failed with error: {e}")
+        # Todo: Need to adjust if states['physics'] is not present
+        result = {'x_states': {}, 'z_states': {}}
+        inputs = self._normalize_data(inputs)
+        if self.forward_hypernetwork:
+            weights = self.forward_hypernetwork(inputs['exo_input'])
+            result['z_states']['z_regress'] = self.forward_mapper(inputs['x_states']['x_regress'],
+                                                                  weights)
+            result['z_states']['z_physics'] = self.forward_mapper(inputs['x_states']['x_physics'],
+                                                                  weights)
         else:
-            z_hat = self.forward_mapper(inputs['x_states'])
+            result['z_states']['z_regress'] = self.forward_mapper(inputs['x_states']['x_regress'])
+            result['z_states']['z_physics'] = self.forward_mapper(inputs['x_states']['x_physics'])
 
-        if self.inverse_hypernetwork is not None:
-            try:
-                weights = self.inverse_hypernetwork(inputs['exo_input'])
-                x_hat = self.inverse_mapper(inputs['z_states'], weights)
-            except Exception as e:
-                print(f"Inverse mapper hypernetwork failed with error: {e}")
+        # INVERSE MAPPER
+        if self.inverse_hypernetwork:
+            weights = self.inverse_hypernetwork(inputs['exo_input'])
+            result['x_states']['x_regress'] = self.inverse_mapper(inputs['z_states']['z_regress'],
+                                                                  weights)
+            result['x_states']['x_physics'] = self.inverse_mapper(inputs['z_states']['z_physics'],
+                                                                  weights)
         else:
-            x_hat = self.inverse_mapper(inputs['z_states'])
+            result['x_states']['x_regress'] = self.inverse_mapper(inputs['z_states']['z_regress'])
+            result['x_states']['x_physics'] = self.inverse_mapper(inputs['z_states']['z_physics'])
 
-        return z_hat, x_hat
+        self._denormalize_data(result)
+        return result

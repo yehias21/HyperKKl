@@ -3,7 +3,8 @@
 - Use the hypernetwork as hard physics constraint? theoretical guarantee? (e.g most probably as an approximation)
 ### Why does it work?
 - The concept of soft weight sharing 
-- Our model is data conditioned
+- Our model is data conditioned, It's very related to multiple concepts as Meta-Learning, conditional neural networks
+- sharing weights
 ## Physics points
 - Why do we isolate the physics points from regression points in the loss function? 
 - Can I use the physics points as self-supervised, pretraining technique?
