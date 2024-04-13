@@ -38,6 +38,8 @@ class KKLObserverNetwork(nn.Module):
         if self.normalizer:
             norm_data = {}
             for key in data.keys():
+                if key in ['time', 'y_out']:
+                    continue
                 if isinstance(data[key], dict):
                     norm_data[key] = {}
                     for inner_key in data[key].keys():
@@ -51,6 +53,8 @@ class KKLObserverNetwork(nn.Module):
         if self.normalizer:
             denorm_data = {}
             for key in data.keys():
+                if key in ['time', 'y_out']:
+                    continue
                 if isinstance(data[key], dict):
                     denorm_data[key] = {}
                     for inner_key in data[key].keys():
@@ -68,22 +72,26 @@ class KKLObserverNetwork(nn.Module):
             weights = self.forward_hypernetwork(inputs['exo_input'])
             result['z_states']['z_regress'] = self.forward_mapper(inputs['x_states']['x_regress'],
                                                                   weights)
-            result['z_states']['z_physics'] = self.forward_mapper(inputs['x_states']['x_physics'],
+            if 'x_physics' in inputs['x_states']:
+                result['z_states']['z_physics'] = self.forward_mapper(inputs['x_states']['x_physics'],
                                                                   weights)
         else:
             result['z_states']['z_regress'] = self.forward_mapper(inputs['x_states']['x_regress'])
-            result['z_states']['z_physics'] = self.forward_mapper(inputs['x_states']['x_physics'])
+            if 'x_physics' in inputs['x_states']:
+                result['z_states']['z_physics'] = self.forward_mapper(inputs['x_states']['x_physics'])
 
         # INVERSE MAPPER
         if self.inverse_hypernetwork:
             weights = self.inverse_hypernetwork(inputs['exo_input'])
             result['x_states']['x_regress'] = self.inverse_mapper(inputs['z_states']['z_regress'],
                                                                   weights)
-            result['x_states']['x_physics'] = self.inverse_mapper(inputs['z_states']['z_physics'],
+            if 'z_physics' in inputs['z_states']:
+                result['x_states']['x_physics'] = self.inverse_mapper(inputs['z_states']['z_physics'],
                                                                   weights)
         else:
             result['x_states']['x_regress'] = self.inverse_mapper(inputs['z_states']['z_regress'])
-            result['x_states']['x_physics'] = self.inverse_mapper(inputs['z_states']['z_physics'])
+            if 'z_physics' in inputs['z_states']:
+                result['x_states']['x_physics'] = self.inverse_mapper(inputs['z_states']['z_physics'])
 
         self._denormalize_data(result)
         return result

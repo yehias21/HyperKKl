@@ -1,3 +1,7 @@
+# Todo
+- [ ] 
+
+
 # Model Loading
 
 - 2 models: encoder and decoder

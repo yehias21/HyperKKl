@@ -19,14 +19,14 @@ class Noise:
 
 # Gaussian noise generator
 class GaussianNoise(Noise):
-    def __init__(self, mean: float, std_dev: float, seed: int = 0):
+    def __init__(self, mean: float, std: float, seed: int = 0):
         super().__init__()
         self.mean = mean
-        self.std_dev = std_dev
+        self.std = std
         self.random = np.random.RandomState(seed)
 
     def __call__(self, variable: np.ndarray, t=0) -> np.ndarray:
-        noise = self.mean + self.std_dev * self.random.randn(*variable.shape)
+        noise = self.mean + self.std * self.random.randn(*variable.shape)
         return noise
 
 

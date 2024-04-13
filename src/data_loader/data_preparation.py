@@ -1,6 +1,8 @@
 from typing import Optional
 import numpy as np
-from src.simulators.system import System, Observer
+from src.simulators.systems import System
+from src.simulators.estimators import KKLObserver
+
 from src.simulators.types import SimTime
 from tqdm import tqdm
 from hydra.utils import instantiate
@@ -30,15 +32,16 @@ def simulate_system_data(system, solver, sim_time, input_data: Optional[np.ndarr
     return trajectories, np.arange(sim_time.t0, sim_time.tn, sim_time.eps)
 
 
-def simulate_observer_data(observer: Observer, system: System, y_out: np.ndarray,
-                           solver, sim_time: SimTime, gen_mode='forward'):
+def simulate_kklobserver_data(observer: KKLObserver, system: System, y_out: np.ndarray,
+                              solver, sim_time: SimTime, gen_mode='forward'):
     """ Simulate observer data out"""
     # checks
     assert gen_mode in ['forward', 'backward'], "gen_mode should be either 'forward' or 'backward'"
     # backward distinguishability
     t_neg = observer.calc_pret0()
-    sim_neg = SimTime(sim_time.t0, t_neg, sim_time.eps) if gen_mode == 'backward' else SimTime(t_neg, sim_time.t0,
-                                                                                               sim_time.eps)
+    sim_neg = SimTime(sim_time.t0, sim_time.t0 + t_neg, sim_time.eps) if gen_mode == 'backward' else SimTime(
+        t_neg + sim_time.t0, sim_time.t0,
+        sim_time.eps)
     # simulate the system in the negative time, with same initial condition of forward time
     neg_states, _ = simulate_system_data(system, solver, sim_neg)
     neg_out = system.get_output(neg_states)
@@ -77,8 +80,8 @@ def generate_ph_points(cfg, system, observer, solver, sim_time, input_trajectori
             ph_x_states, _ = simulate_system_data(system=system, solver=solver,
                                                   sim_time=sim_time, input_data=input_trajectories)
             ph_out = system.get_output(ph_x_states)
-            ph_observer_states = simulate_observer_data(observer=observer, system=system, y_out=ph_out,
-                                                        solver=solver, sim_time=sim_time, gen_mode=cfg.gen_mode)
+            ph_observer_states = simulate_kklobserver_data(observer=observer, system=system, y_out=ph_out,
+                                                           solver=solver, sim_time=sim_time, gen_mode=cfg.gen_mode)
             x_states = {
                 'x_regress': states,
                 'x_physics': ph_x_states
@@ -104,11 +107,9 @@ def generate_ph_points(cfg, system, observer, solver, sim_time, input_trajectori
         case 'no_physics':
             x_states = {
                 'x_regress': states,
-                'x_physics': states,
             }
             z_states = {
                 'z_regress': observer_states,
-                'z_physics': observer_states,
             }
         case _:
             raise ValueError(f"{cfg.pinn_sample_mode} is not a valid sample mode")

@@ -6,17 +6,16 @@ import os
 
 
 class Logger:
-    def __init__(self, path):
+    def __init__(self, local_path, env_path=None):
+        """
+        :param type: local, global or both
+        :param env_path: .env path file
+        """
         # Load Comet credentials from .env file
-        load_dotenv(dotenv_path=path)
+        load_dotenv(dotenv_path=env_path)
         comet_api_key = os.getenv("COMET_API_KEY")
         comet_project_name = os.getenv("COMET_PROJECT_NAME")
         comet_workspace = os.getenv("COMET_WORKSPACE")
-
-        # Initialize logger
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
-
         # Initialize Comet.ml experiment
         self.comet_experiment = None
         if comet_api_key and comet_project_name and comet_workspace:
@@ -27,7 +26,7 @@ class Logger:
             )
 
         # Initialize TensorBoard writer
-        self.tensorboard_writer = SummaryWriter()
+        self.tensorboard_writer = SummaryWriter(log_dir=local_path)
 
     def log_parameters(self, parameters):
         # Log parameters to both Comet.ml and TensorBoard
@@ -35,7 +34,7 @@ class Logger:
             self.comet_experiment.log_parameters(parameters)
         self.tensorboard_writer.add_hparams(parameters, {})
 
-    def log_metric(self, name, value, step=None):
+    def log_metric(self, name, value, step):
         # Log metrics to both Comet.ml and TensorBoard
         if self.comet_experiment:
             self.comet_experiment.log_metric(name, value, step=step)
@@ -46,4 +45,3 @@ class Logger:
         if self.comet_experiment:
             self.comet_experiment.end()
         self.tensorboard_writer.close()
-

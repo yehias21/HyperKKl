@@ -1,32 +1,26 @@
 import torch
 import numpy as np
+import torch.utils.data
 
 
 class Normalizer:
-    def __init__(self, dataloader):
-        self.means, self.stds = self.calculate_statistics(dataloader)
+    def __init__(self, dataset):
+        self.means = {}
+        self.stds = {}
+        # Calculate mean and std for states
+        for key, value in dataset.x_states.items():
+            self.means[key] = np.mean(value, dtype=np.float32)
+            self.stds[key] = np.std(value, dtype=np.float32)
+        # Calculate mean and std for observer states
+        for key, value in dataset.z_states.items():
+            self.means[key] = np.mean(value, dtype=np.float32)
+            self.stds[key] = np.std(value, dtype=np.float32)
+        # Calculate mean and std for exo_input
+        if dataset.exo_input is not None:
+            self.means['exo_input'] = np.mean(dataset.exo_input, dtype=np.float32)
+            self.stds['exo_input'] = np.std(dataset.exo_input, dtype=np.float32)
 
-    def calculate_statistics(self, dataloader):
-        means = {}
-        stds = {}
-
-        for batched_data in dataloader:
-            for key, value in batched_data.items():
-                if isinstance(value, dict):
-                    for inner_key, inner_value in value.items():
-                        inner_value = inner_value.numpy().ravel()
-                        means.setdefault(inner_key, []).append(inner_value.mean())
-                        stds.setdefault(inner_key, []).append(inner_value.std())
-                else:
-                    value = value.numpy().ravel()
-                    means.setdefault(key, []).append(value.mean())
-                    stds.setdefault(key, []).append(value.std())
-
-        # Calculate overall mean and standard deviation
-        means = {key: np.mean(values) for key, values in means.items()}
-        stds = {key: np.std(values) for key, values in stds.items()}
-
-        return means, stds
+    # convert means and stds to np.float32
 
     def normalize(self, data, var_name):
         return (data - self.means[var_name]) / self.stds[var_name]

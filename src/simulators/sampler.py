@@ -78,9 +78,8 @@ class UniformSampler:
         self.random = np.random.RandomState(seed)
 
     def __call__(self, num_samples):
-
         return self.random.uniform(low=self.xlimits[:, 0], high=self.xlimits[:, 1],
-                                      size=(num_samples, len(self.xlimits)))
+                                   size=(num_samples, len(self.xlimits)))
 
 
 class NormalSampler:

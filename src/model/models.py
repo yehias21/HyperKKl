@@ -76,7 +76,11 @@ class MLP(nn.Module):
                 # check dict if weight is present in one line
                 w_final = module.weight.detach().clone() + delta_weights.get(f'{name}.weight', torch.Tensor([0]))
                 bias = module.bias.detach().clone() + delta_weights.get(f'{name}.bias', torch.Tensor([0]))
-                x = F.linear(x, w_final, bias)
+                temp = []
+                # fixme: this is a temporary fix, need to find a better way... and bias is assumed to be 2D and not 3D
+                for i in range(w_final.shape[0]):
+                    temp.append(F.linear(x[i], w_final[i], bias))
+                x = torch.stack(temp)
             elif isinstance(module, (nn.ReLU, nn.Tanh, nn.Sigmoid)):
                 x = activation_fn(module.__class__.__name__.lower())(x)
         return x

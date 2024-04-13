@@ -28,7 +28,7 @@ def main(cfg: DictConfig) -> None:
     if cfg.trainer.method == 'supervised_pinn':
         pde_loss = PDELoss(cfg.models.diff_eq, kkl_model.forward, cfg.models.A, cfg.models.B)
     loss = Criterion(cfg.trainer.loss, cfg.trainer.method, pde_loss)
-    normalizer = Normalizer(train_loader)
+    normalizer = Normalizer(train_loader.dataset)
     kkl_model.set_normalizer(normalizer)
     optimizer = torch.optim.Adam(kkl_model.learnable_params, lr=cfg.trainer.learning_rate)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=1, threshold=0.0001, verbose=True)

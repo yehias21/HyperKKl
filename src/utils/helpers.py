@@ -2,7 +2,6 @@ import torch, os, time, random
 import numpy as np
 from glob import glob
 
-
 def seed_everything(seed: int = 17) -> None:
     random.seed(seed)
     np.random.seed(seed)
