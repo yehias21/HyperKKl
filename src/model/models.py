@@ -81,7 +81,6 @@ class MLP(nn.Module):
                 for i in range(w_final.shape[0]):
                     temp.append(F.linear(x[i], w_final[i], bias))
                 x = torch.stack(temp)
-            elif isinstance(module, (nn.ReLU, nn.Tanh, nn.Sigmoid)):
                 x = activation_fn(module.__class__.__name__.lower())(x)
         return x
 
@@ -91,11 +90,7 @@ class MLP(nn.Module):
             for i in range(weight.shape[0]):
                 temp.append(F.linear(x[i], weight[i]))
             x = torch.stack(temp)
-            #
-            try:
-                x = activation_fn(self.activation[idx])(x)
-            except IndexError:
-                pass
+            x = activation_fn(self.activation[idx])(x)
         return x
 
     def forward(self, x, weight: dict[str, torch.Tensor] = None):

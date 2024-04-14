@@ -1,6 +1,4 @@
-class Checker:
-    def __init__(self, cfg):
-        self.cfg = cfg
+import unittest
 
-    def input_checker(self):
-            pass
+# checks
+assert gen_mode in ['forward', 'backward'], "gen_mode should be either 'forward' or 'backward'"

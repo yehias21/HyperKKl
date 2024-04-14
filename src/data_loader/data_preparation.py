@@ -2,7 +2,7 @@ from typing import Optional
 import numpy as np
 from src.simulators.systems import System
 from src.simulators.estimators import KKLObserver
-
+from concurrent.futures import ProcessPoolExecutor
 from src.simulators.types import SimTime
 from tqdm import tqdm
 from hydra.utils import instantiate
@@ -14,19 +14,18 @@ def simulate_system_data(system, solver, sim_time, input_data: Optional[np.ndarr
      :returns: system states, dimension (inp, sys_ic, t, x_dim)
      """
     trajectories = []
-    if input_data is not None:
-        for input_traj in tqdm(input_data, desc="Input Loop", position=0):
-            temp_trajs = []
-            for ic in tqdm(system.ic, desc="system Loop", position=1, leave=False):
-                states, _ = solver(system.diff_eq, sim_time, ic, input_traj)
-                temp_trajs.append(states)
+    with ProcessPoolExecutor(max_workers=8) as executor:
+        if input_data is not None:
+            # Case with exogenous input data
+            for input_traj in tqdm(input_data, desc="Exogenous Input IC"):
+                results = map(lambda ic: executor.submit(solver, system.diff_eq, sim_time, ic, input_traj), system.ic)
+                temp_trajs = [result.result()[0] for result in results]
+                trajectories.append(temp_trajs)
+        else:
+            # Case without exogenous input data
+            results = map(lambda ic: executor.submit(solver, system.diff_eq, sim_time, ic), system.ic)
+            temp_trajs = [result.result()[0] for result in results]
             trajectories.append(temp_trajs)
-    else:
-        temp_trajs = []
-        for ic in tqdm(system.ic):
-            states, _ = solver(system.diff_eq, sim_time, ic)
-            temp_trajs.append(states)
-        trajectories.append(temp_trajs)
     # drop the initial conditions from system states
     trajectories = np.delete(np.array(trajectories), 0, -2)
     return trajectories, np.arange(sim_time.t0, sim_time.tn, sim_time.eps)
@@ -35,8 +34,6 @@ def simulate_system_data(system, solver, sim_time, input_data: Optional[np.ndarr
 def simulate_kklobserver_data(observer: KKLObserver, system: System, y_out: np.ndarray,
                               solver, sim_time: SimTime, gen_mode='forward'):
     """ Simulate observer data out"""
-    # checks
-    assert gen_mode in ['forward', 'backward'], "gen_mode should be either 'forward' or 'backward'"
     # backward distinguishability
     t_neg = observer.calc_pret0()
     sim_neg = SimTime(sim_time.t0, sim_time.t0 + t_neg, sim_time.eps) if gen_mode == 'backward' else SimTime(
@@ -60,12 +57,14 @@ def simulate_kklobserver_data(observer: KKLObserver, system: System, y_out: np.n
     # simulate the observer
     z_states = []
     # First loop over the input signal
-    for y_in in y_out:
-        z_states_temp = []
+    for y_in in tqdm(y_out, desc="Observer Exogenous Input Loop"):
         # Inner loop for each initial condition Z0
-        for z0, y_traj in zip(z_init, y_in):
-            z_temp, _ = solver(observer.diff_eq, sim_time, z0, exogenous_input=y_traj)
-            z_states_temp.append(z_temp)
+        with ProcessPoolExecutor(max_workers=8) as executor:
+            results = [executor.submit(solver, observer.diff_eq, sim_time, z0, exogenous_input=y_traj) for z0, y_traj in
+                       zip(z_init, y_in)]
+
+            # make it list comprehension to avoid the generator to be exhausted
+            z_states_temp = [result.result()[0] for result in results]
         z_states.append(z_states_temp)
 
     # drop the initial conditions from system states

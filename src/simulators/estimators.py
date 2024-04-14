@@ -21,6 +21,7 @@ class StateObserver(ABC):
        """
         self._ic = self._sampler(num_samples)
 
+    @property
     def ic(self) -> np.ndarray:
         return self._ic
 

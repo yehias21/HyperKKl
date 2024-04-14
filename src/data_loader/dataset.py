@@ -14,6 +14,7 @@ class KKLObserver(Dataset):
         self.z_states = z_states
         self.exo_input = exo_input
         self.time = time
+        self.y_out = {key.replace('x', 'y'): self.system.get_output(self.x_states[key]) for key in self.x_states}
         # Check dimensions and set parameters accordingly
         self.inp_ic, self.ic, self.t, _ = (
             self.x_states['x_regress'].shape)  # dimension of the regress must be equal  to dimension of physics
@@ -30,8 +31,7 @@ class KKLObserver(Dataset):
 
         x_sample = {key: self.x_states[key][inp_ic_idx, ic_idx, t_idx, :].astype(np.float32) for key in self.x_states}
         z_sample = {key: self.z_states[key][inp_ic_idx, ic_idx, t_idx, :].astype(np.float32) for key in self.z_states}
-        y_out = {key.replace('x', 'y'): self.system.get_output(x_sample[key]).astype(np.float32) for key in
-                 x_sample.keys()}
+        y_out = {key: self.y_out[key][inp_ic_idx, ic_idx, t_idx, :].astype(np.float32) for key in self.y_out}
 
         if self.exo_input is None:
             return {'x_states': x_sample, 'z_states': z_sample, 'time': self.time[t_idx].astype(np.float32),
@@ -73,7 +73,7 @@ def load_dataset(cfg: DictConfig, partition: str = 'train') -> DataLoader:
                                                     solver=solver, sim_time=sim_time, gen_mode=cfg.gen_mode)
         x_states, z_states = generate_ph_points(cfg, system, observer, solver, sim_time,
                                                 input_trajectories, states, observer_states)
-        ################################################################################################
+################################################################################################
         train_set = KKLObserver(system=system, x_states=x_states, z_states=z_states, exo_input=input_trajectories,
                                 time=time)
         train_loader = DataLoader(train_set, batch_size=cfg.dataloader.batch_size, shuffle=cfg.dataloader.shuffle)
@@ -81,6 +81,7 @@ def load_dataset(cfg: DictConfig, partition: str = 'train') -> DataLoader:
 
     elif partition == 'test':
         pass
+
 
 # Todo:
 # 1. Validation

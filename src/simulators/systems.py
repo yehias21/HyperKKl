@@ -41,8 +41,9 @@ class System(ABC):
 
     def get_output(self, states: np.ndarray) -> np.ndarray:
         """ Returns the output of the system """
-        return (np.array(self.system_param.C) * states)[..., self.system_param.ObservableIndex] + self.noise[1](states)
+        return (np.array(self.system_param.C) * states + + self.noise[1](states))[..., self.system_param.ObservableIndex]
 
+    @property
     def ic(self) -> np.ndarray:
         return self._ic
 
