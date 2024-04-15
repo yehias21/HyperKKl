@@ -1,4 +1,5 @@
 import torch
+from tqdm import tqdm
 
 
 class Trainer:
@@ -10,15 +11,22 @@ class Trainer:
     """
 
     def __init__(self, model, criterion, optimizer, cfg,
-                 train_loader, logger=None, val_loader=None, lr_scheduler=None):
+                 train_loader, epochs, logger=None, val_loader=None, lr_scheduler=None):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
+        self.epochs = epochs
         self.cfg = cfg
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.lr_scheduler = lr_scheduler
         self.logger = logger
+
+    def train(self):
+        for epoch in tqdm(range(self.cfg.trainer.epochs)):
+            train_loss = self._train_epoch(epoch)
+            # valid_loss = self._valid_epoch(epoch)
+            print(f"Epoch: {epoch}, Train Loss: {train_loss}")
 
     def _train_epoch(self, epoch):
         self.model.train()

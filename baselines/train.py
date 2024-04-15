@@ -26,18 +26,18 @@ def main(cfg: DictConfig) -> None:
 
     pde_loss = None
     if cfg.trainer.method == 'supervised_pinn':
-        pde_loss = PDELoss(cfg.models.diff_eq, kkl_model.forward, cfg.models.A, cfg.models.B)
+        pde_loss = PDELoss(train_loader.dataset.system.diff_eq, kkl_model.forward, train_loader.dataset.observer.A,
+                           train_loader.dataset.observer.B)
     loss = Criterion(cfg.trainer.loss, cfg.trainer.method, pde_loss)
     normalizer = Normalizer(train_loader.dataset)
     kkl_model.set_normalizer(normalizer)
     optimizer = torch.optim.Adam(kkl_model.learnable_params, lr=cfg.trainer.learning_rate)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=1, threshold=0.0001, verbose=True)
     trainer = Trainer(cfg=cfg, model=kkl_model, criterion=loss, optimizer=optimizer, train_loader=train_loader,
-                      lr_scheduler=scheduler, logger=logger)
+                      lr_scheduler=scheduler, logger=logger, epochs=cfg.trainer.epochs)
 
     # 4. Train
-    for epoch in tqdm(range(cfg.trainer.epochs)):
-        print(trainer._train_epoch(epoch))
+    trainer.train()
 
     # 5. Save model
     # Todo: Save model, optimizer and scheduler

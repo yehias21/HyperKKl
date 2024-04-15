@@ -46,8 +46,8 @@ class TestData(unittest.TestCase):
                 del self.cfg.input_signal
             else:
                 print("Testing the system with exogenous input")
-        self.ds = load_dataset(self.cfg).dataset
-        self._print_dim()
+            self.ds = load_dataset(self.cfg).dataset
+            self._print_dim()
 
     def test_ph_genmode(self):
         """

@@ -40,7 +40,7 @@ class PDELoss(torch.nn.Module):
         super().__init__()
         self.diff_eq = diff_eq
         self.forward_mapper = forward_mapper
-        self.A, self.B = torch.from_numpy(A.astype(dtype=np.float32)), torch.from_numpy(B.astype(dtype=np.float32))
+        self.A, self.B = A, B
 
     def _get_jac(self, x):
         dtdx = torch.autograd.functional.jacobian(cast(function, self.forward_mapper), x)

@@ -4,6 +4,10 @@ from src.simulators.types import SysDim, SysParam
 from typing import Optional, Callable, Union
 
 
+def _default_noise(x: np.ndarray, t: float = None) -> np.ndarray:
+    return np.zeros_like(x)
+
+
 class System(ABC):
     """
     Abstract class for the system, this class should be inherited by the system class.
@@ -26,8 +30,7 @@ class System(ABC):
         The noise functions is designed to be non-stationary (i.e. time-varying, state dependent) for generalization
         """
         self._sampler = sampler
-        self.noise = (p_noise if p_noise else lambda x, t: np.zeros_like(x)
-                      , m_noise if m_noise else lambda x: np.zeros_like(x))
+        self.noise = (p_noise if p_noise else _default_noise, m_noise if m_noise else _default_noise)
         self._ic = sampler(num_samples)
         self.system_param = system_param
 
@@ -41,7 +44,8 @@ class System(ABC):
 
     def get_output(self, states: np.ndarray) -> np.ndarray:
         """ Returns the output of the system """
-        return (np.array(self.system_param.C) * states + + self.noise[1](states))[..., self.system_param.ObservableIndex]
+        return (np.array(self.system_param.C) * states + + self.noise[1](states))[
+            ..., self.system_param.ObservableIndex]
 
     @property
     def ic(self) -> np.ndarray:

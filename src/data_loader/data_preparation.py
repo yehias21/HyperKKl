@@ -36,7 +36,7 @@ def simulate_kklobserver_data(observer: KKLObserver, system: System, y_out: np.n
     """ Simulate observer data out"""
     # backward distinguishability
     t_neg = observer.calc_pret0()
-    sim_neg = SimTime(sim_time.t0, sim_time.t0 + t_neg, sim_time.eps) if gen_mode == 'backward' else SimTime(
+    sim_neg = SimTime(sim_time.t0, sim_time.t0 + t_neg, -sim_time.eps) if gen_mode == 'backward' else SimTime(
         t_neg + sim_time.t0, sim_time.t0,
         sim_time.eps)
     # simulate the system in the negative time, with same initial condition of forward time
@@ -46,6 +46,7 @@ def simulate_kklobserver_data(observer: KKLObserver, system: System, y_out: np.n
     # converge to the initial condition of the observer so that Z0 = T(X0)
     neg_out = np.squeeze(neg_out, 0)
     z_init = []
+    sim_neg = SimTime(t_neg + sim_time.t0, sim_time.t0, sim_time.eps)
     for z0, y in zip(observer.ic, neg_out):
         z_temp, _ = solver(observer.diff_eq, sim_neg, z0, exogenous_input=y)
         z_init.append(z_temp)
@@ -90,9 +91,7 @@ def generate_ph_points(cfg, system, observer, solver, sim_time, input_trajectori
                 'z_physics': ph_observer_states
             }
         case 'split_traj':
-            if states.shape[1] == 1:
-                raise ValueError("Cannot split along the first dimension if its size is 1")
-
+            assert states.shape[1] > 1, ValueError("Cannot split along the first dimension if its size is 1")
             x_states = {
                 'x_regress': states[:, ::2],
                 'x_physics': states[:, 1::2],
