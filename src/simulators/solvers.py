@@ -30,7 +30,7 @@ def runge_kutta_4th_order(diff_eq: Callable, sim_time: SimTime, x0: np.ndarray,
         k2 = diff_eq(t + h / 2, x0 + h / 2 * k1, inp_t)
         k3 = diff_eq(t + h / 2, x0 + h / 2 * k2, inp_t)
         k4 = diff_eq(t + h, x0 + h * k3, inp_t)
-        # state n+1 at time t+h
+          # state n+1 at time t+h
         x0 = x0 + (h / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
         states = np.vstack((states, x0))
         x0 = states[ind + 1]

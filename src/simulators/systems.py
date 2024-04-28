@@ -79,7 +79,7 @@ class Duffing(System):
                  p_noise: Callable = None, m_noise: Callable = None) -> None:
         super().__init__(sampler, system_param, num_samples, p_noise, m_noise)
 
-    def diff_eq(self, t: float, x: list[float], inp: Optional[Union[float, Callable]] = 0) -> np.ndarray:
+    def diff_eq(self, t: float=0, x: list[float]=0, inp: Optional[Union[float, Callable]] = [0]) -> np.ndarray:
         if callable(inp): inp = inp(t)
         x1_dot = x[1] ** 3
         x2_dot = - x[0] + inp[0]

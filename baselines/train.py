@@ -8,7 +8,6 @@ from src.utils.loss import Criterion, PDELoss
 from src.utils.logger import Logger
 from src.model.model_generation import init_models
 from src.trainer.trainer import Trainer
-from tqdm import tqdm
 
 
 @hydra.main(config_path="config", config_name="duff", version_base=None)
@@ -19,6 +18,7 @@ def main(cfg: DictConfig) -> None:
 
     # 2. Load train dataset
     train_loader = load_dataset(cfg.data, partition='train')
+    normalizer = Normalizer(train_loader.dataset)
 
     # 3. Initialize model
     kkl_model = init_models(cfg.models)
@@ -26,10 +26,10 @@ def main(cfg: DictConfig) -> None:
 
     pde_loss = None
     if cfg.trainer.method == 'supervised_pinn':
-        pde_loss = PDELoss(train_loader.dataset.system.diff_eq, kkl_model.forward, train_loader.dataset.observer.A,
-                           train_loader.dataset.observer.B)
-    loss = Criterion(cfg.trainer.loss, cfg.trainer.method, pde_loss)
-    normalizer = Normalizer(train_loader.dataset)
+        pde_loss = PDELoss(train_loader.dataset.system.diff_eq, kkl_model.forward_mapper, train_loader.dataset.observer.A,
+                           train_loader.dataset.observer.B, normalizer=normalizer)
+
+    loss = Criterion(cfg.trainer.loss, cfg.trainer.method, pde_loss, normalizer=normalizer)
     kkl_model.set_normalizer(normalizer)
     optimizer = torch.optim.Adam(kkl_model.learnable_params, lr=cfg.trainer.learning_rate)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=1, threshold=0.0001, verbose=True)
