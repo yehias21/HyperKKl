@@ -1,6 +1,16 @@
 import torch, os, time, random
 import numpy as np
 from glob import glob
+import os
+
+
+def save_dataset(dataset):
+    main, sub = gen_dir_time()
+    pth = os.path.join('data', main, sub)
+    os.makedirs(pth, exist_ok= True)
+    torch.save(dataset, os.path.join(pth, 'train_wo_inp.pth'))
+    return pth
+
 
 def seed_everything(seed: int = 17) -> None:
     random.seed(seed)
@@ -16,11 +26,12 @@ def gen_dir_time() -> tuple[str, str]:
     return main_dir, sub_dir
 
 
-def get_files(path, extension='.tif',str_filter=None):
+def get_files(path, extension='.tif', str_filter=None):
     if str_filter is None:
         return glob(os.path.join(path, '**', f'*{extension}'), recursive=True)
     else:
         raise NotImplementedError
+
 
 def save_model(cfg, model, optimizer, scheduler):
     main, sub = gen_dir_time()

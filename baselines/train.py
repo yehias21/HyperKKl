@@ -34,7 +34,7 @@ def main(cfg: DictConfig) -> None:
     optimizer = torch.optim.Adam(kkl_model.learnable_params, lr=cfg.trainer.learning_rate)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=1, threshold=0.0001, verbose=True)
     trainer = Trainer(cfg=cfg, model=kkl_model, criterion=loss, optimizer=optimizer, train_loader=train_loader,
-                      lr_scheduler=scheduler, logger=logger, epochs=cfg.trainer.epochs)
+                      lr_scheduler=scheduler, logger=logger, epochs=cfg.trainer.epochs, device= cfg.trainer.device)
 
     # 4. Train
     trainer.train()

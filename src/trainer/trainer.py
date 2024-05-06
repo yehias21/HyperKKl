@@ -11,7 +11,8 @@ class Trainer:
     """
 
     def __init__(self, model, criterion, optimizer, cfg,
-                 train_loader, epochs, logger=None, val_loader=None, lr_scheduler=None):
+                 train_loader, epochs, logger=None, val_loader=None, lr_scheduler=None,
+                 device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
@@ -21,6 +22,7 @@ class Trainer:
         self.val_loader = val_loader
         self.lr_scheduler = lr_scheduler
         self.logger = logger
+        self.device = device
 
     def train(self):
         for epoch in tqdm(range(self.cfg.trainer.epochs)):

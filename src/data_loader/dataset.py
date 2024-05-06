@@ -6,7 +6,7 @@ from src.data_loader.data_preparation import simulate_system_data, simulate_kklo
 from typing import Optional
 import numpy as np
 from src.simulators.systems import System
-
+from src.utils.helpers import save_dataset
 
 class KKLObserver(Dataset):
     def __init__(self, system: System, observer, x_states: dict, z_states: dict, time, exo_input: Optional[np.array] = None):
@@ -78,6 +78,8 @@ def load_dataset(cfg: DictConfig, partition: str = 'train') -> DataLoader:
 ################################################################################################
         train_set = KKLObserver(system=system, observer=observer,x_states=x_states, z_states=z_states, exo_input=input_trajectories,
                                 time=time)
+        # save dataset
+        save_dataset(train_set)
         train_loader = DataLoader(train_set, batch_size=cfg.dataloader.batch_size, shuffle=cfg.dataloader.shuffle)
         return train_loader
 

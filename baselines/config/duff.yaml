@@ -48,23 +48,26 @@ data:
     sample_space: [ [ -1,1 ],[ -1,1 ] ]
 
   #
-#  input_signal:
-#    _target_: src.simulators.exogenous_signals.SinSignal
-#    num_samples: 10
-#    sig_param:
-#      _target_: src.simulators.types.SigParam
-#      signal_type: harmonics
-#      signal_data:
-#        {
-#          amp: [ 1, 3, 4, 5 ],
-#          freq: [ 1, 3, 6, 2 ],
-#          phase: [ 0, 0, 0, 0 ]
-#        }
-#    sampler:
-#      _target_: src.simulators.sampler.get_sampler
-#      sampler_type: lhs
-#      seed: 123
-#      sample_space: [ [ -1,1 ] ]
+  input_signal:
+    _target_: src.simulators.exogenous_signals.SinSignal
+    num_samples: 1
+    sig_param:
+      _target_: src.simulators.types.SigParam
+      signal_type: harmonics
+      signal_data:
+        {
+          amp: [ 1, 3, 4, 5 ],
+          freq: [ 0.1, 0.03, 0.6, 0.02 ],
+          phase: [ 0, 0, 0, 0 ]
+#          amp: [ 0.5],
+#          freq: [ 0.03],
+#          phase: [ 1.2]
+        }
+    sampler:
+      _target_: src.simulators.sampler.get_sampler
+      sampler_type: lhs
+      seed: 123
+      sample_space: [ [ -1,1 ] ]
 
 
   observer:
@@ -126,3 +129,4 @@ trainer:
   learning_rate: 0.001
   lambda: 1
   loss: mse
+  device: cuda # cuda or cpu
