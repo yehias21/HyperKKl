@@ -40,6 +40,7 @@ def simulate_kklobserver_data(observer: KKLObserver, system: System, y_out: np.n
         t_neg + sim_time.t0, sim_time.t0,
         sim_time.eps)
     # simulate the system in the negative time, with same initial condition of forward time
+    print(t_neg)
     neg_states, _ = simulate_system_data(system, solver, sim_neg)
     neg_out = system.get_output(neg_states)
     neg_out = np.flip(neg_out, axis=-2) if gen_mode == 'backward' else neg_out

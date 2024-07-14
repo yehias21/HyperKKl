@@ -1,4 +1,6 @@
 import copy
+import os
+import torch
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 from torch.utils.data import Dataset, DataLoader
@@ -8,8 +10,10 @@ import numpy as np
 from src.simulators.systems import System
 from src.utils.helpers import save_dataset
 
+
 class KKLObserver(Dataset):
-    def __init__(self, system: System, observer, x_states: dict, z_states: dict, time, exo_input: Optional[np.array] = None):
+    def __init__(self, system: System, observer, x_states: dict, z_states: dict, time,
+                 exo_input: Optional[np.array] = None):
         self.system = system
         self.observer = observer
         self.x_states = x_states
@@ -44,7 +48,7 @@ class KKLObserver(Dataset):
                     'time': self.time[t_idx].astype(np.float32), 'y_out': y_out}
 
 
-def load_dataset(cfg: DictConfig, partition: str = 'train') -> DataLoader:
+def load_dataset(cfg: DictConfig, partition: str = 'train') -> [DataLoader, tuple[DataLoader, DataLoader]]:
     """
     :param cfg: configuration file
     :param partition: train or test
@@ -52,10 +56,11 @@ def load_dataset(cfg: DictConfig, partition: str = 'train') -> DataLoader:
     :description:
     input_trajs: input signal to the system, dimension (inp, t, sig_dim)
     states: system states, dimension (inp, sys_ic, t, x_dim)
-    observer_states: observer states, dimension (inp, sys_ic, t, z_dim)
     y_out: system output, dimension (inp, sys_ic, t, y_dim)
     ** In case of no input signal, the inp dimension is 1 **
     """
+    if os.path.exists(cfg.get("saved_dataset_path", "")):
+        train_set, val_set = torch.load(cfg.saved_dataset_path)
     if partition == 'train':
         # Dynamical system initialization
         system = instantiate(cfg.system)
@@ -64,8 +69,9 @@ def load_dataset(cfg: DictConfig, partition: str = 'train') -> DataLoader:
         solver = instantiate(cfg.solver)
         input_trajectories = None
         if 'input_signal' in cfg:
-            input_signal = instantiate(cfg.input_signal)
-            input_trajectories = input_signal.generate_trajs(sim_time)
+            input_signal = instantiate(cfg.exo_input, _recursive_=False)
+            input_trajectories = input_signal.generate_signals(sim_time)
+
         # simulate the system
         states, time = simulate_system_data(system=system, solver=solver,
                                             sim_time=sim_time, input_data=input_trajectories)
@@ -73,22 +79,22 @@ def load_dataset(cfg: DictConfig, partition: str = 'train') -> DataLoader:
         # Simulate the observer
         observer_states = simulate_kklobserver_data(observer=observer, system=system, y_out=y_out,
                                                     solver=solver, sim_time=sim_time, gen_mode=cfg.gen_mode)
+
         x_states, z_states = generate_ph_points(cfg, system, observer, solver, sim_time,
                                                 input_trajectories, states, observer_states)
-################################################################################################
-        train_set = KKLObserver(system=system, observer=observer,x_states=x_states, z_states=z_states, exo_input=input_trajectories,
+        ################################################################################################
+        train_set = KKLObserver(system=system, observer=observer, x_states=x_states, z_states=z_states,
+                                exo_input=input_trajectories,
                                 time=time)
         # save dataset
         save_dataset(train_set)
         train_loader = DataLoader(train_set, batch_size=cfg.dataloader.batch_size, shuffle=cfg.dataloader.shuffle)
-        return train_loader
+        return train_loader, val_loader
 
     elif partition == 'test':
         pass
 
-
 # Todo:
 # 1. Validation
 # 2. Abstract classes adjustments
-# 3. The adjustment of input randomness (what to random and Use randomstate)
 # 4. Dataset need to be adapted to sequential scheme and shuffle between trajectories

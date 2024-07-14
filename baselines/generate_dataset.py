@@ -10,7 +10,7 @@ from src.model.model_generation import init_models
 from src.trainer.trainer import Trainer
 
 
-@hydra.main(config_path="config", config_name="duff", version_base=None)
+@hydra.main(config_path="config", config_name="lorenz", version_base=None)
 def main(cfg: DictConfig) -> None:
     # 1. Log the configuration
     OmegaConf.to_yaml(cfg)

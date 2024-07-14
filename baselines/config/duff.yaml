@@ -1,4 +1,59 @@
+experiment_name: duffing_simple_inp
+env_path: ./baselines/config/.env
+
+
 data:
+  exo_input:
+    _target_: src.simulators.exogenous_signals.SignalGenerator
+    num_samples: 5
+    seed: 22
+    sys_states: 2
+    signals:
+      state_1:
+        _target_: src.simulators.exogenous_signals.SinSignal
+        seed: ${exo_input.seed}
+        num_samples: ${exo_input.num_samples}
+        params:
+          _target_: src.simulators.types.SigParam
+          signal_type: harmonics_range
+          signal_data:
+            {
+              sin_component: 3,
+              omega_range: [ 0, 0.6 ],
+              amp_range: [ -3, 3 ]
+            }
+
+      state_2:
+        _target_: src.simulators.exogenous_signals.AlternatingSquareSignal
+        seed: ${exo_input.seed}
+        num_samples: ${exo_input.num_samples}
+        params:
+          _target_: src.simulators.types.SigParam
+          signal_type: square_wave
+          signal_data:
+            {
+              period: 10,
+              amp: [ -1, 1 ]
+            }
+
+
+    observer:
+      _target_: src.simulators.estimators.KKLObserver
+      a: [ -6.5549,  4.6082, -5.2057, 3.3942, 6.0211,
+           -10.9772, -2.3362, -3.7164, -3.9566, -3.7166,
+           -1.9393, -0.2797, -2.7983, -0.8606, -4.8050,
+           -10.5100, -1.0820, -2.6448, -2.1144, -7.0080,
+           -10.1003, -0.5111, 1.0275, 3.1996, -0.3463 ]
+      b: [ 1.0, 1.0, 1.0, 1.0, 1.0 ]
+      z_dim: 5
+      e: 0.000001 #10e-6
+      z_max: 10
+      num_samples: ${data.system.num_samples}
+      sampler:
+        _target_: src.simulators.sampler.get_sampler
+        sampler_type: uniform
+        seed: 123
+        sample_space: [ [ -1,1 ],[ -1,1 ],[ -1,1 ],[ -1,1 ],[ -1,1 ] ]
 
   solver:
     _target_: src.simulators.solvers.get_solver
@@ -36,60 +91,20 @@ data:
 #      noise_type: gaussian
 #      mean: 0
 #      std: 0.1
-#    m_noise:
-#      _target_: src.simulators.noise.get_noise
-#      noise_type: gaussian
-#      mean: 0
-#      std: 0.1
+    m_noise:
+      _target_: src.simulators.noise.get_noise
+      noise_type: gaussian
+      mean: 0
+      std: 0.1
   ph_sampler:
     _target_: src.simulators.sampler.get_sampler
     sampler_type: lhs
     seed: 8888
     sample_space: [ [ -1,1 ],[ -1,1 ] ]
 
-  #
-  input_signal:
-    _target_: src.simulators.exogenous_signals.SinSignal
-    num_samples: 1
-    sig_param:
-      _target_: src.simulators.types.SigParam
-      signal_type: harmonics
-      signal_data:
-        {
-          amp: [ 1, 3, 4, 5 ],
-          freq: [ 0.1, 0.03, 0.6, 0.02 ],
-          phase: [ 0, 0, 0, 0 ]
-#          amp: [ 0.5],
-#          freq: [ 0.03],
-#          phase: [ 1.2]
-        }
-    sampler:
-      _target_: src.simulators.sampler.get_sampler
-      sampler_type: lhs
-      seed: 123
-      sample_space: [ [ -1,1 ] ]
 
-
-  observer:
-    _target_: src.simulators.estimators.KKLObserver
-    a: [ -6.5549,  4.6082, -5.2057, 3.3942, 6.0211,
-         -10.9772, -2.3362, -3.7164, -3.9566, -3.7166,
-         -1.9393, -0.2797, -2.7983, -0.8606, -4.8050,
-         -10.5100, -1.0820, -2.6448, -2.1144, -7.0080,
-         -10.1003, -0.5111, 1.0275, 3.1996, -0.3463 ]
-    b: [ 1.0, 1.0, 1.0, 1.0, 1.0 ]
-    z_dim: 5
-    e: 0.000001 #10e-6
-    z_max: 10
-    num_samples: ${data.system.num_samples}
-    sampler:
-      _target_: src.simulators.sampler.get_sampler
-      sampler_type: uniform
-      seed: 123
-      sample_space: [ [ -1,1 ],[ -1,1 ],[ -1,1 ],[ -1,1 ],[ -1,1 ] ]
 
 models:
-
   forward_mapper:
     type: MLP
     update_method: backprop #backprop, delta, full
@@ -130,3 +145,4 @@ trainer:
   lambda: 1
   loss: mse
   device: cuda # cuda or cpu
+  save_dir: ./checkpoints

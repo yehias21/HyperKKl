@@ -13,6 +13,10 @@ class Trainer:
     def __init__(self, model, criterion, optimizer, cfg,
                  train_loader, epochs, logger=None, val_loader=None, lr_scheduler=None,
                  device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
+        """
+
+        :type device: object
+        """
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer

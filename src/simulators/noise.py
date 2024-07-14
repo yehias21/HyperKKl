@@ -25,8 +25,8 @@ class GaussianNoise(Noise):
         self.std = std
         self.random = np.random.RandomState(seed)
 
-    def __call__(self, variable: np.ndarray, t=0) -> np.ndarray:
-        noise = self.mean + self.std * self.random.randn(*variable.shape)
+    def __call__(self, state: np.ndarray, t=0) -> np.ndarray:
+        noise = self.mean + self.std * self.random.randn(*np.array(state).shape)
         return noise
 
 
@@ -37,8 +37,8 @@ class WhiteNoise(Noise):
         self.amplitude = amplitude
         self.random = np.random.RandomState(seed)
 
-    def __call__(self, variable: np.ndarray, t=0) -> np.ndarray:
-        noise = self.amplitude * self.random.randn(*variable.shape)
+    def __call__(self, state: np.ndarray, t=0) -> np.ndarray:
+        noise = self.amplitude * self.random.randn(*np.array(state).shape)
         return noise
 
 

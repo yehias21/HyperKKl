@@ -1,6 +1,7 @@
 from typing import Optional
 import torch.nn as nn, torch
 from src.model.hypernetwork import HyperNetwork
+from abc import ABC, abstractmethod
 
 
 class KKLObserverNetwork(nn.Module):
@@ -74,7 +75,7 @@ class KKLObserverNetwork(nn.Module):
                                                                   weights)
             if 'x_physics' in inputs['x_states']:
                 result['z_states']['z_physics'] = self.forward_mapper(inputs['x_states']['x_physics'],
-                                                                  weights)
+                                                                      weights)
         else:
             result['z_states']['z_regress'] = self.forward_mapper(inputs['x_states']['x_regress'])
             if 'x_physics' in inputs['x_states']:
@@ -87,7 +88,7 @@ class KKLObserverNetwork(nn.Module):
                                                                   weights)
             if 'z_physics' in inputs['z_states']:
                 result['x_states']['x_physics'] = self.inverse_mapper(inputs['z_states']['z_physics'],
-                                                                  weights)
+                                                                      weights)
         else:
             result['x_states']['x_regress'] = self.inverse_mapper(inputs['z_states']['z_regress'])
             if 'z_physics' in inputs['z_states']:

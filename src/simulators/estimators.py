@@ -9,8 +9,7 @@ class StateObserver(ABC):
         self._sampler = sampler
 
     @abstractmethod
-    def diff_eq(self, t: float, x_hat: list[float], y: list[float],
-                inp: Optional[Union[float, Callable]] = 0) -> np.ndarray:
+    def diff_eq(self, x: list[float], t: float, inp: list[float]) -> np.ndarray:
         pass
 
     def generate_ic(self, num_samples: int) -> None:
@@ -38,8 +37,8 @@ class KKLObserver(StateObserver):
         self.e = e
         self.z_max = z_max
 
-    def diff_eq(self, t: float, x_hat: list[float], y: list[float], **kwargs) -> np.ndarray:
-        x_hat_dot = np.matmul(self.A, x_hat) + self.B * y
+    def diff_eq(self, x: list[float], t: float, inp: list[float], **kwargs) -> np.ndarray:
+        x_hat_dot = np.matmul(self.A, x) + self.B * inp
         return x_hat_dot
 
     def calc_pret0(self):
