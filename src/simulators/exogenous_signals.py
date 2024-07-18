@@ -1,10 +1,12 @@
+import pickle as pk
 from abc import abstractmethod, ABC
 from concurrent.futures import ProcessPoolExecutor
-import numpy as np
-from src.simulators.types import SimTime
 from typing import Union, Dict, Any
+
+import numpy as np
 from hydra.utils import instantiate
-import pickle as pk
+
+from src.simulators.types import SimTime
 
 
 # adjust the signal generation for the latest edits
@@ -146,8 +148,8 @@ class SystemAsSignal(InputSignal):
             temp_trajs = [result.result()[0] for result in results]
             trajectories.append(temp_trajs)
         # make it with for loop
-        # trajectories = np.squeeze(system.get_output(np.delete(np.array(trajectories), 0, -2)), 0)
-        return np.squeeze(trajectories,0)
+        trajectories = np.squeeze(system.get_output(np.delete(np.array(trajectories), 0, -2)), 0)
+        return trajectories
 
 
 class NoSignal(InputSignal):

@@ -1,11 +1,13 @@
-from typing import Optional
-import numpy as np
-from src.simulators.systems import System
-from src.simulators.estimators import KKLObserver
 from concurrent.futures import ProcessPoolExecutor
-from src.simulators.types import SimTime
-from tqdm import tqdm
+from typing import Optional
+
+import numpy as np
 from hydra.utils import instantiate
+from tqdm import tqdm
+
+from src.simulators.estimators import KKLObserver
+from src.simulators.systems import System
+from src.simulators.types import SimTime
 
 
 def simulate_system_data(system, solver, sim_time, input_data: Optional[np.ndarray] = None):
@@ -33,16 +35,21 @@ def simulate_system_data(system, solver, sim_time, input_data: Optional[np.ndarr
 
 def simulate_kklobserver_data(observer: KKLObserver, system: System, y_out: np.ndarray,
                               solver, sim_time: SimTime, gen_mode='forward'):
-    """ Simulate observer data out"""
+    """
+    - Simulate observer data out
+    - TODO:
+        A more robust simulation that the initial condition of positive trajectory are already from negative forward
+        or just we can invert the output
+    """
     # backward distinguishability
     t_neg = observer.calc_pret0()
     sim_neg = SimTime(sim_time.t0, sim_time.t0 + t_neg, -sim_time.eps) if gen_mode == 'backward' else SimTime(
         t_neg + sim_time.t0, sim_time.t0,
         sim_time.eps)
     # simulate the system in the negative time, with same initial condition of forward time
-    print(t_neg)
+    system.p_noise_flag = False
     neg_states, _ = simulate_system_data(system, solver, sim_neg)
-    neg_out = system.get_output(neg_states)
+    neg_out = system.get_output(neg_states, noise_flag=False)
     neg_out = np.flip(neg_out, axis=-2) if gen_mode == 'backward' else neg_out
     # converge to the initial condition of the observer so that Z0 = T(X0)
     neg_out = np.squeeze(neg_out, 0)

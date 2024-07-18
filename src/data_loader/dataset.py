@@ -1,14 +1,13 @@
-import copy
 import os
+from typing import Optional
+
+import numpy as np
 import torch
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 from torch.utils.data import Dataset, DataLoader
 from src.data_loader.data_preparation import simulate_system_data, simulate_kklobserver_data, generate_ph_points
-from typing import Optional
-import numpy as np
 from src.simulators.systems import System
-from src.utils.helpers import save_dataset
 
 
 class KKLObserver(Dataset):
@@ -59,13 +58,16 @@ def load_dataset(cfg: DictConfig, partition: str = 'train') -> [DataLoader, tupl
     y_out: system output, dimension (inp, sys_ic, t, y_dim)
     ** In case of no input signal, the inp dimension is 1 **
     """
-    if os.path.exists(cfg.get("saved_dataset_path", "")):
-        train_set, val_set = torch.load(cfg.saved_dataset_path)
     if partition == 'train':
+        if os.path.exists(cfg.get("saved_dataset_path", "")):
+            train_set, val_set = torch.load(cfg.saved_dataset_path)
         # Dynamical system initialization
         system = instantiate(cfg.system)
         observer = instantiate(cfg.observer)
         sim_time = instantiate(cfg.sim_time)
+        if cfg.get("validation", None):
+            if cfg.validation.method == 'long_horizon':
+                sim_time.tn += cfg.validation.time
         solver = instantiate(cfg.solver)
         input_trajectories = None
         if 'input_signal' in cfg:
@@ -75,26 +77,50 @@ def load_dataset(cfg: DictConfig, partition: str = 'train') -> [DataLoader, tupl
         # simulate the system
         states, time = simulate_system_data(system=system, solver=solver,
                                             sim_time=sim_time, input_data=input_trajectories)
-        y_out = system.get_output(states)
+        y_out = system.get_output(states, multi_inp=cfg.multi_inp)
         # Simulate the observer
         observer_states = simulate_kklobserver_data(observer=observer, system=system, y_out=y_out,
                                                     solver=solver, sim_time=sim_time, gen_mode=cfg.gen_mode)
+        # dataset creation
 
-        x_states, z_states = generate_ph_points(cfg, system, observer, solver, sim_time,
-                                                input_trajectories, states, observer_states)
-        ################################################################################################
-        train_set = KKLObserver(system=system, observer=observer, x_states=x_states, z_states=z_states,
-                                exo_input=input_trajectories,
-                                time=time)
-        # save dataset
-        save_dataset(train_set)
-        train_loader = DataLoader(train_set, batch_size=cfg.dataloader.batch_size, shuffle=cfg.dataloader.shuffle)
-        return train_loader, val_loader
+        if cfg.get("validation", None):
+            match cfg.validation.method:
+                case 'long_horizon':
+                    val_time = np.arange(cfg.sim_time.tn, cfg.sim_time.tn + cfg.validation.time, cfg.sim_time.eps)
+                    t_shape = val_time.shape[0]
+                    train_system, val_system = states[:, :, :-t_shape, :], states[:, :, -t_shape:, :]
+                    train_observer, val_observer = observer_states[:, :, :-t_shape, :], observer_states[:, :, -t_shape:,
+                                                                                        :]
+                    train_y_out, val_y_out = y_out[:, :, :-t_shape, :], y_out[:, :, -t_shape:, :]
+                    train_input_trajectories, val_input_trajectories = input_trajectories[:, :, :-t_shape,
+                                                                       :], input_trajectories[:, :, -t_shape:, :]
 
-    elif partition == 'test':
-        pass
+                case 'different_configuration':
+                    sim_time = instantiate(cfg.validation.sim_time)
+                    system.sampler(instantiate(cfg.validation.sampler))
+                    observer.sampler(instantiate(cfg.validation.sampler))
+                    val_system, val_time = simulate_system_data(system=system, solver=solver, sim_time=sim_time)
+                    val_observer = simulate_kklobserver_data(observer=observer, system=system, y_out=y_out,
+                                                             solver=solver, sim_time=sim_time)
+                    val_y_out = system.get_output(val_system, multi_inp=cfg.multi_inp)
+                    val_input_trajectories = None
+                    if 'input_signal' in cfg.validation:
+                        input_signal = instantiate(cfg.validation.exo_input, _recursive_=False)
+                        val_input_trajectories = input_signal.generate_signals(sim_time)
 
-# Todo:
-# 1. Validation
-# 2. Abstract classes adjustments
-# 4. Dataset need to be adapted to sequential scheme and shuffle between trajectories
+        ph_x_states, ph_z_states = None, None
+        if 'pinn_sampling' in cfg:
+            sim_time = instantiate(cfg.sim_time)
+            ph_x_states, ph_z_states = generate_ph_points(cfg, system, observer, solver, sim_time,
+                                                          train_input_trajectories, train_system, train_observer)
+
+        train_set = KKLObserver(system=system, observer=observer,
+                                x_states={'x_regress': states, 'x_physics': ph_x_states},
+                                z_states={'z_regress': observer_states, 'z_physics': ph_z_states}, time=time,
+                                exo_input=train_input_trajectories)
+        val_set = KKLObserver(system=system, observer=observer, x_states={'x_regress': val_system},
+                              z_states={'z_regress': val_observer}, time=val_time, exo_input=val_input_trajectories)
+    # save dataset
+    train_loader = DataLoader(train_set, batch_size=cfg.dataloader.batch_size, shuffle=cfg.dataloader.shuffle)
+    val_loader = DataLoader(val_set, batch_size=cfg.dataloader.batch_size, shuffle=cfg.dataloader.shuffle)
+    return train_loader, val_loader
