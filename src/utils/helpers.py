@@ -42,3 +42,8 @@ def save_model(cfg, model, optimizer, scheduler):
     torch.save(optimizer.state_dict(), os.path.join(pth, 'optimizer.pth'))
     torch.save(scheduler.state_dict(), os.path.join(pth, 'scheduler.pth'))
     return pth
+
+def get_exp_dir(cfg):
+    if cfg is None:
+        raise ValueError('cfg cannot be None')
+    return "" + cfg.exp_name + time.strftime("-%Y-%m-%d-%H-%M-%S")

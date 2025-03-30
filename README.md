@@ -1,5 +1,115 @@
 # HyperKKL
 
+A Python-based framework for implementing and training neural networks, with a focus on dynamical systems.
+
+## Project Structure
+
+```
+├── src/                    # Core source code
+│   ├── data_loader/       # Dataset handling and preparation
+│   ├── model/            # Neural network models and hypernetworks
+│   ├── simulators/       # System simulators and solvers
+│   ├── trainer/          # Training logic
+│   └── utils/            # Helper functions and utilities
+│
+├── runners/               # Execution scripts and configurations
+│   ├── config/           # Configuration files
+│   │   ├── data/        # Data configurations
+│   │   │   ├── exo_input/    # External input configs
+│   │   │   ├── observer/     # Observer configs
+│   │   │   └── system/       # System configs
+│   │   ├── model/       # Model configurations
+│   │   └── trainer/     # Training configurations
+│   ├── run.py           # Main execution script
+│   ├── train.py         # Training script
+│   └── test.py          # Testing script
+│
+├── data/                 # Data storage
+├── docs/                 # Documentation
+│   └── img/             # Documentation images
+├── envs/                 # Environment configuration
+├── notebooks/           # Jupyter notebooks
+├── results/             # Output results and visualizations
+└── test/                # Test files and configurations
+```
+
+## Setup
+
+1. Create and activate the conda environment:
+```bash
+conda env create -f envs/kkl.yml
+conda activate kkl
+```
+
+2. Install the package in development mode:
+```bash
+pip install -e .
+```
+
+## Usage
+
+### Training
+
+To train a model using the default configuration:
+
+```bash
+python runners/train.py
+```
+
+### Testing
+
+To run tests:
+
+```bash
+python runners/test.py
+```
+
+### Data Generation
+
+To generate datasets:
+
+```bash
+python runners/generate_dataset.py
+```
+
+## Configuration
+
+The project uses YAML configuration files located in `runners/config/`:
+
+- `baseline.yaml`: Main configuration file
+- `data generation.yaml`: Data generation settings
+- System-specific configurations in `config/data/system/`
+- Model configurations in `config/model/`
+- Training configurations in `config/trainer/`
+
+## Supported Systems
+
+The framework supports various dynamical systems:
+- Duffing
+- Lorenz
+- Rossler
+- Chua
+- Van der Pol (VDP)
+- SIR
+
+## Documentation
+
+- `THEORY.md`: Theoretical background
+- `IMPLEMENTATION.md`: Implementation details
+- `docs/`: Additional documentation and visualizations
+
+## Results
+
+Results and visualizations are stored in `results/visualizations/` with timestamps for each experiment.
+
+## Development
+
+For development and testing, Jupyter notebooks are available in the `notebooks/` directory.
+
+## License
+
+[Add your license information here]
+
 ## Model
 The aim of HyperKKL is to take advantage of information provided in the model:
 - **Temporal aspect of the data itself:** data is trained in random sample fashion (aka assume no correlation between the points) mathematically presentation as 

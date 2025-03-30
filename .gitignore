@@ -1,7 +1,10 @@
 credentials.yml
 # Ignore any folder named "output" in any subdirectory
 **/output/
-**/data/
+# .gitignore
+data/**
+!data/.gitkeep
+
 **/.ipynb_checkpoints/
 # Ignore any .pkl files
 *.pkl
@@ -92,7 +95,7 @@ ipython_config.py
 
 # pyenv
 #   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
+#   intended to run.py in multiple environments; otherwise, check them in:
 # .python-version
 
 # pipenv
