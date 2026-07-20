@@ -99,55 +99,46 @@ def simulate_observer(system, sys_config, ic: np.ndarray, input_func: Callable,
 
     modulate_fn = apply_weight_modulation_skip_bias if skip_bias else apply_weight_modulation
 
-    # --- Dynamic methods: step-by-step decoding ---
+    # --- Dynamic methods: windowed hypernetwork, batched over time ---
+    # The weight deltas depend only on the u-window (never on z), and the latent z-ODE
+    # never depends on the deltas. So the two decouple: integrate z once, then decode the
+    # whole trajectory in one batched pass. This is the same interface train_dynamic uses
+    # (hypernet(u_window) with a fresh state per window), so train and inference agree.
     if method_type in ("full", "lora"):
         hypernet.eval()
-        is_recurrent = hasattr(hypernet, "step")
-        x_hat_list = []
-        rnn_state = None
 
-        if is_recurrent:
-            for i in range(N + 1):
-                u_step = u_tensor[i].view(1, 1, 1)
-                with torch.no_grad():
-                    delta_enc, delta_dec, rnn_state = hypernet.step(u_step, rnn_state)
-                    mod_params = modulate_fn(T_inv_base, delta_dec)
-                    x_hat = torch.func.functional_call(
-                        T_inv_base, mod_params, z.unsqueeze(0)
-                    ).cpu().numpy().squeeze()
-                x_hat_list.append(x_hat)
+        z_traj = torch.zeros((N + 1, sys_config.z_size), dtype=torch.float32, device=device)
+        for i in range(N):
+            # Stage-consistent forcing, matching the (now 4th-order) z-label integrator.
+            y_i = y_tensor[i]
+            y_next = y_tensor[i + 1]
+            y_mid = 0.5 * (y_i + y_next)
+            k1 = torch.mv(M_t, z) + K_t * y_i
+            k2 = torch.mv(M_t, z + 0.5 * dt * k1) + K_t * y_mid
+            k3 = torch.mv(M_t, z + 0.5 * dt * k2) + K_t * y_mid
+            k4 = torch.mv(M_t, z + dt * k3) + K_t * y_next
+            z = z + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
+            z_traj[i + 1] = z
 
-                if i < N:
-                    y_i = y_tensor[i]
-                    k1 = torch.mv(M_t, z) + K_t * y_i
-                    k2 = torch.mv(M_t, z + 0.5 * dt * k1) + K_t * y_i
-                    k3 = torch.mv(M_t, z + 0.5 * dt * k2) + K_t * y_i
-                    k4 = torch.mv(M_t, z + dt * k3) + K_t * y_i
-                    z = z + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
-        else:
-            # Window-based
-            pad_len = window_size - 1
-            u_padded = torch.cat([u_tensor[0:1].repeat(pad_len), u_tensor])
+        # Training builds u_window = u[t-window_size : t] (strictly past, excludes u_t);
+        # padding by window_size reproduces that convention exactly.
+        u_padded = torch.cat([u_tensor[0:1].repeat(window_size), u_tensor])
+        u_windows = u_padded.unfold(0, window_size, 1)[:N + 1].unsqueeze(-1)
 
-            for i in range(N + 1):
-                u_win = u_padded[i:i + window_size].unsqueeze(0).unsqueeze(-1)
-                with torch.no_grad():
-                    delta_enc, delta_dec = hypernet(u_win)
-                    mod_params = modulate_fn(T_inv_base, delta_dec)
-                    x_hat = torch.func.functional_call(
-                        T_inv_base, mod_params, z.unsqueeze(0)
-                    ).cpu().numpy().squeeze()
-                x_hat_list.append(x_hat)
+        def _decode(z_i, delta_i):
+            return torch.func.functional_call(
+                T_inv_base, modulate_fn(T_inv_base, delta_i.unsqueeze(0)),
+                z_i.unsqueeze(0)).squeeze(0)
 
-                if i < N:
-                    y_i = y_tensor[i]
-                    k1 = torch.mv(M_t, z) + K_t * y_i
-                    k2 = torch.mv(M_t, z + 0.5 * dt * k1) + K_t * y_i
-                    k3 = torch.mv(M_t, z + 0.5 * dt * k2) + K_t * y_i
-                    k4 = torch.mv(M_t, z + dt * k3) + K_t * y_i
-                    z = z + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
+        chunk = 256
+        x_hat_parts = []
+        with torch.no_grad():
+            for s in range(0, N + 1, chunk):
+                _, delta_dec = hypernet(u_windows[s:s + chunk])
+                x_hat_parts.append(torch.vmap(_decode)(z_traj[s:s + chunk], delta_dec))
+        x_hat = torch.cat(x_hat_parts).cpu().numpy()
 
-        return x_true, np.array(x_hat_list), t_eval
+        return x_true, x_hat, t_eval
 
     # --- Static / Autonomous methods ---
     z_traj = torch.zeros((N + 1, sys_config.z_size), dtype=torch.float32, device=device)
@@ -193,10 +184,12 @@ def simulate_observer(system, sys_config, ic: np.ndarray, input_func: Callable,
         # Autonomous
         for i in range(N):
             y_i = y_tensor[i]
+            y_next = y_tensor[i + 1]
+            y_mid = 0.5 * (y_i + y_next)
             k1 = torch.mv(M_t, z) + K_t * y_i
-            k2 = torch.mv(M_t, z + 0.5 * dt * k1) + K_t * y_i
-            k3 = torch.mv(M_t, z + 0.5 * dt * k2) + K_t * y_i
-            k4 = torch.mv(M_t, z + dt * k3) + K_t * y_i
+            k2 = torch.mv(M_t, z + 0.5 * dt * k1) + K_t * y_mid
+            k3 = torch.mv(M_t, z + 0.5 * dt * k2) + K_t * y_mid
+            k4 = torch.mv(M_t, z + dt * k3) + K_t * y_next
             z = z + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
             z_traj[i + 1] = z
 

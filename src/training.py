@@ -80,7 +80,8 @@ def train_phase1(system, sys_config: SystemConfig, cfg: ExperimentConfig,
             loss_mse = F.mse_loss(z_hat, z)
 
             if p1.use_pde:
-                loss_pde_val = pde_loss(T_net, x_ph, y_ph, T_net(x_ph), system, M, K, device)
+                loss_pde_val = pde_loss(T_net, x_ph, y_ph, T_net(x_ph), system, M, K, device,
+                                        u_scale=p1.pde_u_scale)
                 lam = p1.lambda_pde * min(1.0, epoch / 5)
                 loss = loss_mse + lam * loss_pde_val
             else:
@@ -395,19 +396,28 @@ def train_dynamic(T_base, T_inv_base, sys_config: SystemConfig, train_data: dict
 
             delta_enc, delta_dec = hypernet(u_win)
 
-            def T_modulated(inp):
-                return torch.func.functional_call(T_base, modulate_fn(T_base, delta_enc), inp)
+            # Per-sample weight modulation (Tier 0). `modulate_fn` hard-indexes delta[0]
+            # (models.py:396,411), so handing it a (B, P) delta silently modulates the whole
+            # batch with sample 0's weights: the hypernet saw an effective batch of ONE
+            # u-window per step, and samples 1..B-1 had their (x, y, dxdt) paired with an
+            # unrelated trajectory's input history. `simulate_observer` (evaluation.py:128)
+            # already vmaps a per-sample delta, so training and inference disagreed.
+            def _modulated(base, delta_batch):
+                def f(d_i, inp_i):
+                    return torch.func.functional_call(
+                        base, modulate_fn(base, d_i.unsqueeze(0)), inp_i.unsqueeze(0)
+                    ).squeeze(0)
 
-            def Tstar_modulated(inp):
-                return torch.func.functional_call(T_inv_base, modulate_fn(T_inv_base, delta_dec), inp)
+                return lambda inp: torch.vmap(f)(delta_batch, inp)
+
+            T_modulated = _modulated(T_base, delta_enc)
+            Tstar_modulated = _modulated(T_inv_base, delta_dec)
 
             T_x = T_modulated(x)
 
             # dT/dt via finite difference
             delta_enc_prev, _ = hypernet(u_win_prev)
-
-            def T_modulated_prev(inp):
-                return torch.func.functional_call(T_base, modulate_fn(T_base, delta_enc_prev), inp)
+            T_modulated_prev = _modulated(T_base, delta_enc_prev)
 
             dTdt = (T_x - T_modulated_prev(x)) / dt_sim
 

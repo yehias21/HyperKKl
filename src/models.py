@@ -96,6 +96,15 @@ class Normalizer(nn.Module):
 # Base KKL Network (encoder T / decoder T*)
 # ---------------------------------------------------------------------------
 
+# Decoder-only tanh. Settled by lane -e with paired seeds: encoder-side activation changes
+# hurt (the encoder Jacobian enters the PDE loss, so its activation is not free), while a
+# tanh decoder wins at both seeds (-17.3% at s42, -43.8% at s43). Theoretically it is the
+# change the error bound wants: it bounds the decoder's Lipschitz constant l_dec, which is
+# exactly the term `dyn` inflates. Imported here as a settled result, not re-derived.
+ENCODER_ACTIVATION = F.relu
+DECODER_ACTIVATION = torch.tanh
+
+
 class KKLNetwork(nn.Module):
     """Feedforward network with input normalization and output denormalization.
 
@@ -138,12 +147,12 @@ def build_kkl_network(sys_config, normalizer, role="encoder"):
         return KKLNetwork(
             sys_config.num_hidden, sys_config.hidden_size,
             sys_config.x_size, sys_config.z_size,
-            normalizer=normalizer)
+            activation=ENCODER_ACTIVATION, normalizer=normalizer)
     else:
         return KKLNetwork(
             sys_config.num_hidden, sys_config.hidden_size,
             sys_config.z_size, sys_config.x_size,
-            normalizer=normalizer)
+            activation=DECODER_ACTIVATION, normalizer=normalizer)
 
 
 # ---------------------------------------------------------------------------
@@ -342,8 +351,14 @@ class PerLayerLoRAHyperNetwork(nn.Module):
         return delta_enc, delta_dec
 
     def _energy_gate(self, u, delta_enc, delta_dec):
+        # Saturating gate. A bare u_rms scales the weight deltas without bound, so the
+        # decoder Lipschitz constant grows linearly with input amplitude - and ood inputs
+        # are 2x the id/train amplitudes, i.e. the modulation is extrapolated exactly
+        # where it is least trustworthy. tanh is near-identity over the training range
+        # (u_rms ~ 0.5) and bounds the delta beyond it.
         u_rms = torch.sqrt(torch.mean(u ** 2, dim=(1, 2), keepdim=True)).squeeze(-1)
-        return delta_enc * u_rms, delta_dec * u_rms
+        gate = torch.tanh(u_rms)
+        return delta_enc * gate, delta_dec * gate
 
     def forward(self, u_window, state=None):
         rnn_out = self.rnn(u_window, state)
@@ -419,8 +434,16 @@ def get_layer_sizes(model: nn.Module) -> list:
 # PDE loss
 # ---------------------------------------------------------------------------
 
-def pde_loss(T_net, x, y, z_hat, system, M, K, device, reduction="mean"):
-    """Physics-informed PDE loss: ||dT/dx * f(x) - Mz - Ky||^2 / ||f||^2."""
+def pde_loss(T_net, x, y, z_hat, system, M, K, device, reduction="mean", u_scale=0.0):
+    """Physics-informed PDE loss: ||dT/dx * f(x,u) - Mz - Ky||^2 / ||f||^2.
+
+    u_scale = 0 evaluates f at u = 0, enforcing the PDE only on the autonomous slice.
+    With u_scale > 0 the collocation points draw u ~ U(-u_scale, u_scale), so the residual
+    is enforced across the operating envelope the observer actually sees. Lane -d measured
+    the residual to be affine in u (duffing: eps_pde ~ 0.019 + 0.42*|u|, i.e. 23x its u=0
+    value at u=1); everything above the autonomous slice is error the hypernetwork is
+    otherwise left to absorb at inference. Settled optimum: 1.5.
+    """
     M_t = torch.from_numpy(M).to(device).float()
     K_t = torch.from_numpy(K).to(device).float()
     x.requires_grad_()
@@ -436,8 +459,12 @@ def pde_loss(T_net, x, y, z_hat, system, M, K, device, reduction="mean"):
         jac_rows.append(grads.unsqueeze(1))
     dTdx = torch.cat(jac_rows, dim=1)  # (batch, n_z, n_x)
 
-    # f(x) for autonomous case (u=0)
-    f_val = system.function(0, 0.0, x).to(device).float().unsqueeze(2)
+    # f(x, u): u = 0 (autonomous slice) or sampled across the input range
+    if u_scale > 0:
+        u_col = (torch.rand(x.shape[0], device=x.device, dtype=x.dtype) * 2.0 - 1.0) * u_scale
+    else:
+        u_col = 0.0
+    f_val = system.function(0, u_col, x).to(device).float().unsqueeze(2)
 
     # Lie derivative: dT/dx * f(x)
     dTdx_f = torch.bmm(dTdx, f_val)  # (batch, n_z, 1)

@@ -15,6 +15,7 @@ phase1:
   num_ic: 200
   use_pde: true
   lambda_pde: 1.0
+  pde_u_scale: 1.5   # lane -d's dose-response optimum (settled at two seeds)
 
 phase2:
   epochs: 30

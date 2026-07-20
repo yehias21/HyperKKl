@@ -8,11 +8,16 @@ y_size: 1
 z_size: 5
 num_hidden: 3
 hidden_size: 150
+# Complex-conjugate spectrum (lane -c). Two 2x2 rotation blocks plus one real pole,
+# replacing the purely real diag(-1..-5). The real spectrum makes the z-coordinates
+# nearly collinear (all are low-pass copies of y at different cutoffs), so T is badly
+# conditioned; conjugate pairs give genuinely independent oscillatory directions. This is
+# the only change measured so far that brings dyn/autonomous near parity (ratio 1.016).
 M:
-  - [-1, 0, 0, 0, 0]
-  - [0, -2, 0, 0, 0]
-  - [0, 0, -3, 0, 0]
-  - [0, 0, 0, -4, 0]
+  - [-1.5, 3.0, 0, 0, 0]
+  - [-3.0, -1.5, 0, 0, 0]
+  - [0, 0, -3.5, 7.0, 0]
+  - [0, 0, -7.0, -3.5, 0]
   - [0, 0, 0, 0, -5]
 K:
   - [1]
